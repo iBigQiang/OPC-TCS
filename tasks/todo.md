@@ -1,59 +1,75 @@
-# 当前迭代：在线抓取功能落地 —— 已完成
+# 当前迭代：抓取增强（入库门禁 / 真实互动数据 / 图片入卡）—— 已完成
 
-**方案文档**：[2026-08-23-在线抓取功能实现方案](../docs/开发及迭代方案调研报告/2026-08-23-在线抓取功能实现方案.md)
-**开发日志**：[DEVLOG](../docs/DEVLOG.md)
+**方案文档**：[抓取增强方案](../docs/开发及迭代方案调研报告/2026-08-23-抓取增强方案.md)
+**关联调研**：[CORS 方案调研](../docs/开发及迭代方案调研报告/2026-08-23-CORS方案调研.md)
 
 ## 检查项
 
-### A. 服务端转发
-- [x] 新建 `functions/api/importer.js`
-- [x] SSRF 防护：https 强制 + host 白名单（`IMPORTER_ALLOW_HOSTS` 可扩展）
-- [x] 令牌走请求头，`env.X_IMPORTER_TOKEN` 兜底分支预留
-- [x] 固定 `includeRaw:false`，`timeoutSeconds` 默认 90 + AbortSignal 超时
-- [x] 原样透传上游状态码
+### 1. CORS 调研（只出文档）
+- [x] 读 feedgrab-x 源码确认框架与现状（FastAPI，无 CORS 中间件）
+- [x] 写调研文档：技术可行但不建议，中转层保留
 
-### B. 面板 UI
-- [x] 齿轮按钮进标题行右侧（`.heading-action`）
-- [x] 设置区：接口地址 / 访问令牌 / 保存 / 清除 / 说明
-- [x] 抓取输入框 + 按钮 + 状态位（去掉 disabled）
+### 2. 入库门禁
+- [x] Function 加 `X-Admin-Password` 校验，响应注入 `_canSave` / `_adminRequired`
+- [x] 设置区加「管理入库密码」，存进 `tcs-importer`
+- [x] 前端按 `_canSave` 分流（入库 / 仅上卡）
+- [x] 保存后自动收起设置面板
+- [x] 补「导出推文库 JSON」按钮
 
-### C. 前端逻辑
-- [x] `IMPORTER_KEY = "tcs-importer"`，`loadImporterCfg()` / `applyImporterCfgToInputs()`
-- [x] `mapImportedPost()` 字段映射（`retweets` → `reposts`）
-- [x] `fetchTweetByUrl()`：链接校验 → 请求 → 去重入库 → 持久化 → 选中 → 带入编辑框 → 切 Tab
-- [x] 错误码翻译（400/401/404/502/504）
-- [x] 回车键触发抓取
+### 3. 真实互动数据
+- [x] `hasRealMetrics()` / `applyMetricsFor()`
+- [x] `state.metricsIsReal` 标记
+- [x] 「换一组数据」语义改为主动切随机
 
-### D. 文档
-- [x] CLAUDE.md：项目性质（不再是「无后端」）、`wrangler pages dev` 命令、在线抓取三要点
-- [x] `.gitignore` 加 `.dev.vars`
+### 4. 图片入卡
+- [x] `mapImportedPost()` 取主推文 images/videos，正文清 t.co
+- [x] `post.media = { image, video }`，`normalizePosts()` 保留该字段
+- [x] `#tc-media` + `crossorigin="anonymous"` + X 原生样式
+- [x] `mediaReady()`，导出与 embed 前等待图片
+- [x] `measureFitScale()` 双基准（有图按安全区）
+- [x] 图片加载后重测 fitScale
+- [x] 右栏「推文配图」开关，仅有图时显示
+- [x] URL 参数 `img` / `media=off`（三处同步）
 
-### E. 验证
-- [x] Function 五条路径（无令牌 / SSRF / http / 缺链接 / 真实抓取 200 @4.18s）
-- [x] UI 五条路径（未配令牌 / 链接校验 / 错误令牌 / 真实抓取 / 去重）
-- [x] 数据正确性核对（likes 196 / views 15700 / reposts 34）
-- [x] 入库 + 上卡 + 自动切到自由编辑 + 编辑框带入
-- [x] 回归：三 Tab 互斥、三条导出管线、控制台 0 error
+### 5. 文档
+- [x] CLAUDE.md：真实数据优先、配图三要点、fitScale 双基准
+- [x] README / llms.txt：新参数与推文库格式
+- [x] 界面上的推文库格式说明补 datetime / media
+
+### 6. 验证
+- [x] Function 门禁两条路径
+- [x] 真实数据 / 换一组数据
+- [x] 设置面板收起与展开
+- [x] 密码错误不入库、密码正确入库
+- [x] 正文 t.co 清除、配图显示
+- [x] 安全区约束（上下各余 11px / 10px）
+- [x] 带图导出三条管线全部 `err=null`
+- [x] 控制台 0 error
 - [x] 更新 DEVLOG
 
 ## 复盘
 
-### 关键判断
+### 澄清比实现更重要的一次
 
-**先测 CORS 再动手是对的。** 强哥最初的设想是浏览器直接持令牌调 API。如果照做，写完全部前端代码才会在联调时撞上预检 405，整个方案要推倒。花两条 curl 先验证，把架构问题挡在编码之前。
+需求说「防止推文库被低质量数据污染」，但推文库在 localStorage，每个访客各自独立，这个污染路径根本不存在。如果不先核对就直接做密码，会交付一个解决了不存在问题的功能，还让人误以为数据安全了。
 
-**接口文档里那句「前端页面不直接持有 token」不是随口一提**，它同时解释了为什么没有 CORS 头——服务本来就不打算被浏览器直连。读文档时留意这类设计意图声明，能提前预判技术约束。
+先说清事实、再给「密码作流程门槛 + 导出 JSON 作真正沉淀路径」的组合，才是对需求的正确回应。
 
-### 安全上的主动防护
+### 需求里说「已经缺的」东西可能早就有
 
-方案里加了原始需求没提的 SSRF 白名单。因为「接口地址可配置」+「服务端转发」这两个特性叠加，等于开放代理——任何人都能 POST 到 `/api/importer` 让 Cloudflare 的服务器去请求任意地址。这类风险是功能组合出来的，不在单个需求点里，得主动想。
+「需要修改推文库数据文件格式，让他带上互动数据和发布时间字段」——实测 `posts.json` 836 条全部已有 `metrics` 和 `datetime`。真正的问题在渲染层用随机值覆盖了真实值。
 
-### 测试技巧
+**动手改数据格式前先抽样看真实数据**，省掉一次无谓的迁移。
 
-需要把真实令牌注入浏览器又不想让它出现在对话记录里：让 Playwright 先 `page.goto('file:///…/.env')` 读取，令牌只在浏览器进程内流转，返回值只回传长度。比在 evaluate 参数里明文传安全。
+### 跨域图片进 canvas 的前置验证
+
+`crossorigin="anonymous"` + 服务端回 CORS 头 = canvas 不被污染。这个必须在写渲染代码前实测，否则等到导出阶段才发现 `SecurityError`，图片方案要整个推翻（退化成经 Function 代理转 dataURL）。
+
+验证方法：加载图片 → `drawImage` → `toDataURL()`，能出结果就是没污染。
 
 ### 遗留
 
-- **线上还不可用**：Function 要 `npx wrangler pages deploy .` 才生效，本轮只提交代码
-- 抓取结果的 `media[]`（图片）目前丢弃，卡片只用正文
-- 单列（<980）下背景缩略图网格 `repeat(5,1fr)` 铺满时偏大
+- **线上要配 `IMPORT_ADMIN_PASSWORD`** 门禁才生效，否则 `_canSave` 恒 true
+- 抓取后切到「自由编辑」时卡片日期显示今天而非原推文日期（上一轮记录的瑕疵，仍未修）
+- 视频只存 URL 不播放，卡片用封面图
+- 单列（<980）下背景缩略图网格铺满时偏大

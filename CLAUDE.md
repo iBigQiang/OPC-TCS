@@ -103,7 +103,19 @@ localStorage keys：`tcs-profile` / `tcs-posts` / `tcs-xkey` / `tcs-xsync` / `tc
 2. **Function 里必须做 upstream 白名单校验**。接口地址允许用户在设置里改，不校验的话这个 Function 就是开放代理，谁都能借 Cloudflare 出口打任意地址（SSRF）。
 3. **令牌只存 `localStorage["tcs-importer"]`**，不硬编码进 `functions/`、不进仓库。Function 保留了 `env.X_IMPORTER_TOKEN` 兜底分支，配上就是对所有访客开放（会消耗部署者自己的抓取服务），默认不配。
 
-上游响应里 `thread.tweets[0].text` 才是主推文原文，`promptText` 是主推 + 整条 thread 的拼接。字段映射时 `metrics.retweets` → 本项目的 `reposts`。
+上游响应里 `thread.tweets[0].text` 才是主推文原文，`promptText` 是主推 + 整条 thread 的拼接。字段映射时 `metrics.retweets` → 本项目的 `reposts`。媒体只取 `thread.tweets[0].images[0]`（顶层 `media[]` 含整条 thread 的），视频取封面图不取视频本身。
+
+### 互动数据：真实优先
+
+`posts.json` 里的条目**基本都带真实 metrics**（836 条全有，views 全 >0）。`applyMetricsFor()` 判断任一项 >0 就用真实值，否则 `rollMetrics()` 随机兜底。「换一组数据」按钮是主动切成随机（数据不好看时美化用）。
+
+### 卡片配图
+
+`#tc-media` 必须带 `crossorigin="anonymous"`——没有它 html-to-image 光栅化时会污染 canvas，导出直接失败。`pbs.twimg.com` 会回显请求 Origin 的 CORS 头，实测本地与线上都能正常光栅化，所以**推文库只存图片 URL，不存 dataURL**（存 dataURL 会撑爆 localStorage 配额）。
+
+导出前必须 `await mediaReady()`，图片没加载完光栅化会得到空白。
+
+`fitScale` 有两套基准：**有配图时按安全区可用高度**（poster 495 / tall 722），纯文字沿用 `stage.clientHeight * 0.92`。后者不能改——改了所有历史分享链接的出图都会突然变小。安全区垂直中心比画布中心高 37.5px，正好对应默认 `cardY = -37`。
 
 ### Agent 接口：URL 参数 → embed 渲染
 

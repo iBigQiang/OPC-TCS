@@ -76,7 +76,7 @@ const dataUrl = await page.evaluate(() => window.__cardDataUrl);
 fs.writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base64'));
 ```
 
-参数：`text` `date` / `name` `handle` `avatar` `verified` / `mode`(poster|tall|card) `theme` `scale` `opacity` `fontsize` `dim` `x` `y` / `bg`(内置 slug 或图片 URL) / `metrics=off` 或 `likes` `reposts` `replies` `bookmarks` `views` / `embed=1`。
+参数：`text` `date` / `name` `handle` `avatar` `verified` / `mode`(poster|tall|card) `theme` `scale` `opacity` `fontsize` `dim` `x` `y` / `bg`(内置 slug 或图片 URL) `img`(配图 URL) `media=off` / `metrics=off` 或 `likes` `reposts` `replies` `bookmarks` `views` / `embed=1`。
 完整清单见 [tools.upthos.com/llms.txt](https://tools.upthos.com/llms.txt)。界面上的「复制链接」按钮会把当前设置打包成这样的链接。
 
 ## 项目结构

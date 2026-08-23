@@ -4,6 +4,40 @@
 
 ---
 
+## 需求描述的问题，先核对它是否真实存在
+
+**踩坑**（2026-08-23，入库密码）：需求要加管理密码，理由是「将来大量用户使用，推文库会被低质量数据污染」。但推文库存在每个访客自己浏览器的 localStorage，A 抓的推文根本进不了 B 的库，也进不了服务器上的 `posts.json`——**这个污染路径不存在**。
+
+如果闷头做，会交付一个解决不存在问题的功能，还让人误以为数据被保护了。
+
+**规则**：需求里带着「因为 X 所以要做 Y」的因果时，先验证 X 是否成立。不成立就说清楚，再给一个针对真实需求的方案（本例：密码作流程门槛 + 补「导出 JSON」作真正的沉淀路径）。
+
+同类：**需求说「缺少某字段，需要加上」时，先抽样看真实数据**。本例 `posts.json` 836 条早就全带 `metrics` 和 `datetime`，真正的 bug 在渲染层用随机值覆盖了真实值——省掉一次无谓的数据迁移。
+
+---
+
+## 跨域图片进 canvas，先验证再写渲染代码
+
+**规则**（2026-08-23，图片入卡）：要把外部图片放进会被 `html-to-image` / `toDataURL()` 光栅化的 DOM 里，动手前先实测能否避免 canvas 污染：
+
+```js
+const im = new Image();
+im.crossOrigin = 'anonymous';
+im.onload = () => {
+  const c = document.createElement('canvas');
+  c.width = im.naturalWidth; c.height = im.naturalHeight;
+  c.getContext('2d').drawImage(im, 0, 0);
+  try { c.toDataURL(); console.log('未污染'); } catch (e) { console.log('污染', e.name); }
+};
+im.src = url;
+```
+
+能出结果说明服务端回了 CORS 头，可以直接用 URL（推文库只存 URL，体积小）。抛 `SecurityError` 就必须走服务端代理转 dataURL，方案完全不同。等到导出阶段才发现就得推翻重来。
+
+配套：**导出前要 `await` 图片加载完成**，没加载完光栅化会得到空白图。
+
+---
+
 ## wrangler pages deploy 不看 .gitignore
 
 **踩坑**（2026-08-23，部署在线抓取）：`wrangler pages deploy .` 上传的是**文件系统内容**，`.gitignore` 对它完全无效。本项目 `docs/feedgrab-x/` 被 gitignore（含两个 token 和 X 登录态 cookie），但直接部署会把它们传成公网可访问的静态文件。

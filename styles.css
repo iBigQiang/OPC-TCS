@@ -209,6 +209,10 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .tc-body.size-s { font-size: calc(var(--tc-body-size, 17px) * 0.76); line-height: 1.55; }
 .tc-body.size-xs { font-size: calc(var(--tc-body-size, 17px) * 0.68); line-height: 1.5; }
 .tc-body .tc-link { color: #1d9bf0; }
+/* 推文配图：贴 X 原生——正文下方、圆角、撞满卡片宽。
+   竖图（如视频封面 1080×1920）封顶裁切，否则会把卡片拉得极长、fitScale 一缩字就没法看了 */
+.tc-media { display: block; width: 100%; max-height: 320px; object-fit: cover; border-radius: 16px; margin-top: 12px; border: 1px solid #eff3f4; }
+.tc-media.hidden { display: none; }
 .tc-metrics { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eff3f4; display: flex; gap: 18px; color: #536471; font-size: 12.5px; }
 .tc-metrics span { display: inline-flex; align-items: center; gap: 5px; }
 .tc-metrics svg { width: 15px; height: 15px; fill: currentColor; }

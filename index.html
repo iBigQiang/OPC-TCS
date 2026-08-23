@@ -87,15 +87,19 @@
             <label class="mini-label" for="importer-token">访问令牌</label>
             <input class="text-input" id="importer-token" type="password" placeholder="IMPORT_SERVICE_TOKEN" autocomplete="off" />
           </div>
+          <div class="option">
+            <label class="mini-label" for="importer-admin">管理入库密码</label>
+            <input class="text-input" id="importer-admin" type="password" placeholder="留空则抓到的推文不入在线库" autocomplete="off" />
+          </div>
           <div class="chip-row">
             <button class="chip" id="importer-save">保存</button>
             <button class="chip" id="importer-clear">清除</button>
             <span class="mini-label" id="importer-status"></span>
           </div>
-          <p class="mini-label">令牌只存在你自己的浏览器里（localStorage），不会上传，也不会写进部署的站点。</p>
+          <p class="mini-label">令牌只存在你自己的浏览器里（localStorage），不会上传，也不会写进部署的站点。管理入库密码由服务端校验，密码不对时抓到的推文只进编辑器、不入推文库。</p>
         </div>
 
-        <p class="mini-label">抓到的推文会存进推文库并直接上卡，随后可在「自由编辑」里继续改。</p>
+        <p class="mini-label">默认抓到的推文直接上卡，随后可在「自由编辑」里继续改。</p>
       </section>
 
       <section class="control-section hidden" id="custom-section">
@@ -131,9 +135,10 @@
         </div>
         <div class="chip-row">
           <label class="chip file-chip">导入推文库 JSON<input id="posts-upload" type="file" accept=".json,application/json" hidden /></label>
+          <button class="chip" id="posts-export">导出推文库 JSON</button>
           <button class="chip" id="profile-reset">恢复默认</button>
         </div>
-        <p class="mini-label">推文库格式：JSON 数组，每条只有 text 必填，date / topic / sourceUrl / metrics 可选。</p>
+        <p class="mini-label">推文库格式：JSON 数组，每条只有 text 必填；date / datetime / topic / sourceUrl / metrics / media 可选。metrics 缺失或全为 0 时，卡片会用随机互动数据填充。导出后替换项目里的 posts.json 再部署，抓到的推文就沉淀进库了。</p>
       </section>
 
       <section class="control-section">
@@ -217,6 +222,8 @@
               <span class="tc-x-brand"><svg class="tc-x-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
             </div>
             <div class="tc-body" id="tc-body"></div>
+            <!-- 推文配图（视频推文取封面）。crossorigin 是必须的：没有它 html-to-image 光栅化时会污染 canvas，导出直接失败 -->
+            <img class="tc-media hidden" id="tc-media" crossorigin="anonymous" alt="" />
             <div class="tc-metrics" id="tc-metrics"></div>
           </div>
         </div>
@@ -241,10 +248,18 @@
             </div>
           </div>
           <div class="option">
-            <span class="mini-label">互动数据（随机）</span>
+            <span class="mini-label">互动数据</span>
             <div class="segmented small">
               <button id="metrics-on" class="active">显示</button>
               <button id="metrics-off">隐藏</button>
+            </div>
+          </div>
+          <!-- 只在当前推文带图时显示，由 renderCard() 控制 -->
+          <div class="option hidden" id="media-option">
+            <span class="mini-label">推文配图</span>
+            <div class="segmented small">
+              <button id="media-on" class="active">显示</button>
+              <button id="media-off">隐藏</button>
             </div>
           </div>
           <div class="option full">

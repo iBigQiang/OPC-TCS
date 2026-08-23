@@ -20,6 +20,9 @@ const state = {
   mode: "poster",        // poster | card
   theme: "light",        // light | dark
   metricsOn: true,
+  metricsIsReal: false,  // 当前展示的互动数据是推文自带的真实值还是随机生成的
+  mediaOn: true,         // 是否在卡片上展示推文配图
+  mediaUrl: "",          // 当前卡片的配图（URL 参数 img 也写这里）
   // 默认落在抖音安全区中央：右侧 140px / 底部 300px / 顶部 150px / 左侧 60px（画布px，预览折半）
   cardScale: 95,         // 用户设置的缩放（%），在 fitScale 基础上叠加
   fitScale: 1,           // 长文自动适配画框的缩放
@@ -113,16 +116,23 @@ function applyProfile() {
 function normalizePosts(arr) {
   return arr
     .filter((p) => p && typeof p.text === "string" && p.text.trim())
-    .map((p, i) => ({
-      id: String(p.id || i + 1),
-      date: p.date || todayISO(),
-      datetime: p.datetime || p.date || "",
-      text: p.text,
-      long: !!p.long,
-      sourceUrl: p.sourceUrl || "",
-      topic: p.topic || "未分类",
-      metrics: Object.assign({ likes: 0, replies: 0, reposts: 0, bookmarks: 0, views: 0 }, p.metrics || {}),
-    }))
+    .map((p, i) => {
+      const out = {
+        id: String(p.id || i + 1),
+        date: p.date || todayISO(),
+        datetime: p.datetime || p.date || "",
+        text: p.text,
+        long: !!p.long,
+        sourceUrl: p.sourceUrl || "",
+        topic: p.topic || "未分类",
+        metrics: Object.assign({ likes: 0, replies: 0, reposts: 0, bookmarks: 0, views: 0 }, p.metrics || {}),
+      };
+      // media 可选：只有真带图才留字段，避免给每条都塞一个空对象
+      if (p.media && (p.media.image || p.media.video)) {
+        out.media = { image: p.media.image || "", video: p.media.video || "" };
+      }
+      return out;
+    })
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
@@ -223,7 +233,8 @@ function renderList() {
   $("lib-count").textContent = `· ${state.filtered.length}/${state.posts.length} 条`;
 }
 
-/* 随机但好看的互动数据：浏览量对数均匀分布，其余按真实比例区间派生 */
+/* 随机但好看的互动数据：浏览量对数均匀分布，其余按真实比例区间派生。
+   只在推文没带真实数据时兜底——posts.json 里的条目基本都有真实 metrics。 */
 function rollMetrics() {
   const r = (min, max) => min + Math.random() * (max - min);
   const views = Math.round(30000 * Math.pow(25, Math.random()) / 100) * 100; // 3万 ~ 75万
@@ -235,11 +246,32 @@ function rollMetrics() {
     reposts: Math.round(likes * r(0.15, 0.32)),
     replies: Math.round(likes * r(0.05, 0.12)),
   };
+  state.metricsIsReal = false;
+}
+
+const METRIC_KEYS = ["likes", "replies", "reposts", "bookmarks", "views"];
+
+/* 判断推文自带的互动数据是否可用：任一项 > 0 就算真实数据。
+   全 0 通常意味着字段是 normalizePosts() 补出来的占位值。 */
+function hasRealMetrics(p) {
+  const m = p && p.metrics;
+  return !!m && METRIC_KEYS.some((k) => Number(m[k]) > 0);
+}
+
+/* 有真实数据就用真实的，没有才随机——「换一组数据」按钮可以强制切回随机 */
+function applyMetricsFor(p) {
+  if (hasRealMetrics(p)) {
+    state.fakeMetrics = Object.fromEntries(METRIC_KEYS.map((k) => [k, Number(p.metrics[k]) || 0]));
+    state.metricsIsReal = true;
+  } else {
+    rollMetrics();
+  }
 }
 
 function selectPost(p) {
   state.selected = p;
-  rollMetrics();
+  applyMetricsFor(p);
+  state.mediaUrl = (p && p.media && p.media.image) || "";
   renderList();
   renderCard();
 }
@@ -336,6 +368,15 @@ function renderCard() {
     link.style.display = "none";
   }
 
+  // 推文配图：换图时才重设 src，避免每次渲染都触发重新加载导致闪烁
+  const mediaEl = $("tc-media");
+  const showMedia = !!state.mediaUrl && state.mediaOn;
+  mediaEl.classList.toggle("hidden", !showMedia);
+  if (showMedia && mediaEl.getAttribute("src") !== state.mediaUrl) {
+    mediaEl.src = state.mediaUrl;
+  }
+  $("media-option").classList.toggle("hidden", !state.mediaUrl);
+
   const stage = $("stage");
   const isFrame = state.mode !== "card"; // poster(3:4) 或 tall(9:16)
   stage.classList.toggle("card-only", !isFrame);
@@ -355,13 +396,29 @@ function renderCard() {
   // 竖图模式：卡片浮动（整体缩放 + 可拖动）；长文先自动缩到画框内，再叠加用户缩放
   card.classList.toggle("floating", isFrame);
   if (isFrame) {
-    requestAnimationFrame(() => {
-      state.fitScale = Math.min(1, (stage.clientHeight * 0.92) / card.offsetHeight);
-      applyCardTransform();
-    });
+    requestAnimationFrame(measureFitScale);
   } else {
     card.style.transform = "";
   }
+}
+
+/* 安全区可用高度（预览 px）。上下边界见 styles.css 的 .sg-top / .sg-bottom，
+   tall 模式上边界是 88px。安全区垂直中心比画布中心高 37.5px，正好对应默认 cardY=-37。 */
+function safeAreaHeight(stage) {
+  const top = state.mode === "tall" ? 88 : 75;
+  return stage.clientHeight - top - 150;
+}
+
+/* 有配图时按安全区约束，保证图文整体不越过红色虚线；
+   纯文字卡沿用原来的画框 92%——改了会让所有历史分享链接的出图突然变小。 */
+function measureFitScale() {
+  const stage = $("stage");
+  const card = $("tweet-card");
+  if (state.mode === "card" || !card.offsetHeight) return;
+  const hasMedia = !!state.mediaUrl && state.mediaOn;
+  const avail = hasMedia ? safeAreaHeight(stage) : stage.clientHeight * 0.92;
+  state.fitScale = Math.min(1, avail / card.offsetHeight);
+  applyCardTransform();
 }
 
 function applyCardTransform() {
@@ -486,11 +543,22 @@ function showExportSheet(blob, filename, hint) {
 
 /* ---------- 导出 ---------- */
 
+/* 配图没加载完就光栅化会得到一张空白图，导出前必须等它 */
+function mediaReady() {
+  const el = $("tc-media");
+  if (el.classList.contains("hidden") || !el.getAttribute("src") || el.complete) return Promise.resolve();
+  return new Promise((res) => {
+    el.addEventListener("load", res, { once: true });
+    el.addEventListener("error", res, { once: true });
+  });
+}
+
 /* 卡片单独光栅化：临时摘掉浮动定位与 transform（作为根节点捕获时这些样式会被克隆进画布导致位移裁切） */
 async function captureCardCanvas(pixelRatio) {
   const card = $("tweet-card");
   const hadFloating = card.classList.contains("floating");
   const prevTransform = card.style.transform;
+  await mediaReady();
   card.classList.remove("floating");
   card.style.transform = "none";
   try {
@@ -713,30 +781,37 @@ function loadImporterCfg() {
   try {
     const raw = JSON.parse(localStorage.getItem(IMPORTER_KEY) || "null");
     if (raw && typeof raw === "object") {
-      return { url: raw.url || DEFAULT_IMPORTER_URL, token: raw.token || "" };
+      return { url: raw.url || DEFAULT_IMPORTER_URL, token: raw.token || "", admin: raw.admin || "" };
     }
   } catch { /* 忽略损坏的本机数据 */ }
-  return { url: DEFAULT_IMPORTER_URL, token: "" };
+  return { url: DEFAULT_IMPORTER_URL, token: "", admin: "" };
 }
 
 function applyImporterCfgToInputs() {
   const cfg = loadImporterCfg();
   $("importer-url").value = cfg.url;
   $("importer-token").value = cfg.token;
+  $("importer-admin").value = cfg.admin;
 }
 
-/* 把抓取结果映射成推文库条目。上游的 retweets 对应本项目的 reposts，是唯一需要改名的字段 */
+/* 把抓取结果映射成推文库条目。上游的 retweets 对应本项目的 reposts，是唯一需要改名的字段。
+   媒体只取主推文自己的（thread.tweets[0].images/videos）——顶层 media[] 含整条 thread 的媒体。 */
 function mapImportedPost(d) {
-  const main = (d.thread && d.thread.tweets && d.thread.tweets[0] && d.thread.tweets[0].text) || d.promptText || "";
+  const first = (d.thread && d.thread.tweets && d.thread.tweets[0]) || {};
+  const raw = first.text || d.promptText || "";
   const m = d.metrics || {};
   const src = d.source || {};
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-  return {
+  // 上游已把普通外链展开成明文，剩下的 t.co 都是媒体短链，留在正文里没意义
+  const text = raw.replace(/https:\/\/t\.co\/\w+/g, "").split("\n").map((l) => l.replace(/\s+$/, "")).join("\n").trim();
+  const image = (first.images || [])[0] || "";
+  const video = (first.videos || [])[0] || "";
+  const post = {
     id: "x-" + (src.tweetId || String(Date.now())),
     date: d.date || todayISO(),
     datetime: d.createdAtRaw || d.date || "",
-    text: main.trim(),
-    long: main.length > 300,
+    text,
+    long: text.length > 300,
     sourceUrl: src.url || "",
     topic: "在线抓取",
     metrics: {
@@ -744,6 +819,9 @@ function mapImportedPost(d) {
       bookmarks: num(m.bookmarks), views: num(m.views),
     },
   };
+  // 视频不进卡片（只记录来源），卡片上用的是封面图
+  if (image || video) post.media = { image, video };
+  return post;
 }
 
 async function fetchTweetByUrl() {
@@ -771,6 +849,7 @@ async function fetchTweetByUrl() {
         "Content-Type": "application/json",
         "X-Importer-Token": cfg.token,
         "X-Importer-Url": cfg.url,
+        "X-Admin-Password": cfg.admin,
       },
       body: JSON.stringify({ url }),
     });
@@ -792,23 +871,32 @@ async function fetchTweetByUrl() {
     const post = mapImportedPost(data);
     if (!post.text) throw new Error("抓到了但正文是空的，可能是这条推文只有图片");
 
-    // 同一条链接重复抓取时替换旧记录，不堆重复条目
-    const key = post.sourceUrl || post.id;
-    const idx = state.posts.findIndex((p) => (p.sourceUrl || p.id) === key);
-    if (idx >= 0) state.posts[idx] = post; else state.posts.unshift(post);
+    /* 入库门禁：密码由服务端比对后回 _canSave。不通过就只上卡、不落库，
+       抓到的内容仍能编辑导出，只是不进推文库。 */
+    let note = "";
+    if (data._canSave) {
+      // 同一条链接重复抓取时替换旧记录，不堆重复条目
+      const key = post.sourceUrl || post.id;
+      const idx = state.posts.findIndex((p) => (p.sourceUrl || p.id) === key);
+      if (idx >= 0) state.posts[idx] = post; else state.posts.unshift(post);
 
-    try { localStorage.setItem(POSTS_KEY, JSON.stringify(state.posts)); }
-    catch { alert("推文库太大无法保存到本机，本条仅本次会话有效。"); }
+      try { localStorage.setItem(POSTS_KEY, JSON.stringify(state.posts)); }
+      catch { alert("推文库太大无法保存到本机，本条仅本次会话有效。"); }
 
-    state.chip = { kind: "all", v: "" };
-    state.month = "";
-    state.search = "";
-    $("search").value = "";
-    refreshLibrary();
+      state.chip = { kind: "all", v: "" };
+      state.month = "";
+      state.search = "";
+      $("search").value = "";
+      refreshLibrary();
+      note = idx >= 0 ? "已更新：" : "已抓取：";
+    } else {
+      note = "已抓取（未入库，管理密码不对）：";
+    }
+
     selectPost(post);
     primeCustomText(true);   // 抓完直接可编辑，省掉一次手动复制
     $("tab-custom").click();
-    status.textContent = (idx >= 0 ? "已更新：" : "已抓取：") + post.date + " · " + post.text.length + " 字";
+    status.textContent = note + post.date + " · " + post.text.length + " 字" + (post.media && post.media.image ? " · 含配图" : "");
   } catch (err) {
     status.textContent = "失败：" + err.message;
   } finally {
@@ -950,9 +1038,11 @@ function bind() {
   $("importer-save").onclick = () => {
     const url = $("importer-url").value.trim() || DEFAULT_IMPORTER_URL;
     const token = $("importer-token").value.trim();
-    localStorage.setItem(IMPORTER_KEY, JSON.stringify({ url, token }));
-    $("importer-status").textContent = token ? "已保存到本机" : "已保存（令牌为空）";
-    setTimeout(() => ($("importer-status").textContent = ""), 2000);
+    const admin = $("importer-admin").value.trim();
+    localStorage.setItem(IMPORTER_KEY, JSON.stringify({ url, token, admin }));
+    $("importer-settings").classList.add("hidden");   // 保存即收起，再点齿轮展开
+    $("fetch-status").textContent = token ? "设置已保存到本机" : "已保存（令牌为空）";
+    setTimeout(() => { if ($("fetch-status").textContent.startsWith("设置已保存") || $("fetch-status").textContent.startsWith("已保存")) $("fetch-status").textContent = ""; }, 2500);
   };
   $("importer-clear").onclick = () => {
     localStorage.removeItem(IMPORTER_KEY);
@@ -963,6 +1053,9 @@ function bind() {
   bindSegmented([[$("mode-poster"), "poster"], [$("mode-tall"), "tall"], [$("mode-card"), "card"]], (v) => { state.mode = v; renderCard(); });
   bindSegmented([[$("theme-light"), "light"], [$("theme-dark"), "dark"]], (v) => { state.theme = v; renderCard(); });
   bindSegmented([[$("metrics-on"), true], [$("metrics-off"), false]], (v) => { state.metricsOn = v; renderCard(); });
+  bindSegmented([[$("media-on"), true], [$("media-off"), false]], (v) => { state.mediaOn = v; renderCard(); });
+  // 图片决定卡片高度，加载完必须重测一次，否则 fitScale 用的是没图时的高度
+  $("tc-media").onload = measureFitScale;
 
   document.querySelectorAll(".sort-chip").forEach((chip) => {
     chip.onclick = () => {
@@ -1017,6 +1110,7 @@ function bind() {
     setTimeout(() => ($("copy-text").textContent = "复制文案"), 1200);
   };
 
+  // 有真实数据时点它就是主动换成随机——用于「数据不好看想美化」的场景
   $("shuffle-metrics").onclick = () => { rollMetrics(); renderCard(); };
 
   $("copy-link").onclick = async () => {
@@ -1077,6 +1171,17 @@ function bind() {
       }
     };
     reader.readAsText(file);
+  };
+
+  /* 导出推文库：抓到的推文只在本机 localStorage，导出后替换项目里的 posts.json
+     再部署，才算真正沉淀进库 */
+  $("posts-export").onclick = () => {
+    const blob = new Blob([JSON.stringify(state.posts, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "posts.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
   $("profile-reset").onclick = () => {
@@ -1175,6 +1280,8 @@ async function applyUrlParams() {
   if (q.has("opacity")) state.cardOpacity = clampNum(q.get("opacity"), 30, 100, state.cardOpacity);
   if (q.has("fontsize")) state.bodySize = clampNum(q.get("fontsize"), 14, 24, state.bodySize);
   if (q.has("dim")) state.bgDim = clampNum(q.get("dim"), 0, 55, state.bgDim);
+  if (q.get("img")) state.mediaUrl = q.get("img");
+  if (q.get("media") === "off") state.mediaOn = false;
   if (q.has("x")) state.cardX = clampNum(q.get("x"), -400, 400, 0);
   if (q.has("y")) state.cardY = clampNum(q.get("y"), -600, 600, 0);
   if (q.get("guides") === "0") state.guidesOn = false;
@@ -1197,6 +1304,9 @@ async function runEmbed() {
   try {
     await document.fonts.ready.catch(() => {});
     renderCard();
+    // 配图会改变卡片高度，等它加载完再测量，否则 fitScale 按无图高度算，成品位置会偏
+    await mediaReady();
+    measureFitScale();
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const cv = state.mode === "card" ? await captureCardCanvas(3) : await composePoster();
     const dataUrl = cv.toDataURL("image/png");
@@ -1256,6 +1366,8 @@ function buildShareUrl(embed) {
   if (state.cardOpacity !== 100) q.set("opacity", state.cardOpacity);
   if (state.bodySize !== 17) q.set("fontsize", state.bodySize);
   if (state.bgDim !== 0) q.set("dim", state.bgDim);
+  if (state.mediaUrl) q.set("img", state.mediaUrl);
+  if (!state.mediaOn) q.set("media", "off");
   if (Math.round(state.cardX) !== -20) q.set("x", Math.round(state.cardX));
   if (Math.round(state.cardY) !== -37) q.set("y", Math.round(state.cardY));
   if (!state.metricsOn) q.set("metrics", "off");

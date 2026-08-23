@@ -65,11 +65,33 @@ export async function onRequestPost({ request, env }) {
     });
 
     const text = await res.text();
-    // 原样透传状态码，前端按 401/502/504 给出对应提示
-    return new Response(text, {
-      status: res.status,
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
+    if (!res.ok) {
+      // 上游失败原样透传，前端按 401/502/504 给出对应提示
+      return new Response(text, {
+        status: res.status,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      });
+    }
+
+    /* 入库门禁：密码只在服务端比对，前端拿不到正确值。
+       没配 IMPORT_ADMIN_PASSWORD 就视为放行（本地开发与单人使用行为不变）。
+       注意这只是流程门槛——入库动作在前端，改 JS 就能绕过。 */
+    const wanted = (env.IMPORT_ADMIN_PASSWORD || "").trim();
+    const got = (request.headers.get("x-admin-password") || "").trim();
+    const canSave = !wanted || got === wanted;
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return new Response(text, {
+        status: res.status,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      });
+    }
+    data._canSave = canSave;
+    data._adminRequired = !!wanted;
+    return json(data, 200);
   } catch (err) {
     const timedOut = err && (err.name === "TimeoutError" || err.name === "AbortError");
     return json(
