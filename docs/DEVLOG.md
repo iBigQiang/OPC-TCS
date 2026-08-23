@@ -67,9 +67,40 @@ UI 层（Playwright，令牌从 env 文件经 `file://` 读取，不落到日志
 
 加了 Function 之后，**验证抓取必须用 `npx wrangler pages dev .`**——`python -m http.server` 起的服务下 `/api/importer` 是 404（前端对这个 404 有专门提示）。已写进 CLAUDE.md。
 
-### 部署提示
+### 部署（当天完成）
 
-Function 要随站点 `npx wrangler pages deploy .` 才生效。**本轮只提交代码，线上抓取功能要等部署后才可用。**
+已部署，线上抓取生效。部署 ID `ca0a6dab`，两个域名（`tcs.opc.tools` / `opc-tweet-card-studio.pages.dev`）均已验证。
+
+**部署方式改了，这条很重要**：`wrangler pages deploy` 上传的是**文件系统内容，不看 `.gitignore`**。直接 `deploy .` 会把 `docs/feedgrab-x/` 里的 `.env`（两个 token）和 `sessions/twitter.json`（X 登录态）传成公网可访问的静态文件。
+
+正确做法是先导出干净副本再部署：
+
+```bash
+rm -rf .deploy-tmp && mkdir .deploy-tmp
+git archive HEAD | tar -x -C .deploy-tmp
+npx wrangler pages deploy .deploy-tmp --project-name=opc-tweet-card-studio --branch=main
+rm -rf .deploy-tmp
+```
+
+`git archive HEAD` 只导出已提交内容，`.gitignore` 排除的东西天然不在其中，且 `functions/` 会被包含。
+
+部署前查过线上历史状态：`/docs/feedgrab-x/feedgrab-x.env` 虽然返回 200，但内容哈希与首页、与任意不存在路径完全一致（站点配了 SPA 兜底），确认**此前没有泄露过**。
+
+线上验证：
+
+| 项 | pages.dev | tcs.opc.tools |
+|---|---|---|
+| 首页 | 200 | 200 |
+| `/api/importer` 无令牌 | 401（部署前是 405，即 Function 不存在） | 401 |
+| SSRF 防护（非白名单地址） | 400 | 400 |
+| `.env` 路径 | 兜底页，未泄露 | 兜底页，未泄露 |
+| 真实抓取 | — | **HTTP 200，5.05 秒** |
+
+线上浏览器端到端：抓取 →「已抓取：2026-06-07 · 147 字」→ 推文库 836→837 → 自动切到「自由编辑」→ 编辑框与卡片均为抓来的正文 → 落 localStorage ✅，控制台 0 error。
+
+### 已知瑕疵（待议）
+
+抓取后自动切到「自由编辑」，此时卡片日期显示的是**今天**而非原推文日期（2026-06-07）。原因是 `renderCard()` 里 `fromLibrary()` 为 false 时走 `todayISO()`——这是「自定义文案用当天日期」的既有逻辑。对「基于抓来的推文继续改」这个场景，保留原推文日期更合理。修法需要给编辑态引入一个日期来源标记，本轮未动。
 
 ### 仓库卫生
 

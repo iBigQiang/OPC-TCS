@@ -25,8 +25,13 @@ python3 scripts/build_posts.py
 # 重建背景：写 10 个渐变 SVG + 生成 backgrounds/manifest.json
 python3 scripts/gen_backgrounds.py
 
-# 部署（Cloudflare Pages，项目名 opc-tweet-card-studio，见 .wrangler/cache/pages.json）
-npx wrangler pages deploy .
+# 部署（Cloudflare Pages，项目名 opc-tweet-card-studio）
+# 不要直接 deploy . —— wrangler 上传的是文件系统内容，不看 .gitignore，
+# 会把 docs/feedgrab-x/ 里的 token 与 X 登录态传成公网可访问的静态文件。
+rm -rf .deploy-tmp && mkdir .deploy-tmp
+git archive HEAD | tar -x -C .deploy-tmp
+npx wrangler pages deploy .deploy-tmp --project-name=opc-tweet-card-studio --branch=main
+rm -rf .deploy-tmp
 ```
 
 ## 验证方式

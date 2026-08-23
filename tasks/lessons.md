@@ -4,6 +4,30 @@
 
 ---
 
+## wrangler pages deploy 不看 .gitignore
+
+**踩坑**（2026-08-23，部署在线抓取）：`wrangler pages deploy .` 上传的是**文件系统内容**，`.gitignore` 对它完全无效。本项目 `docs/feedgrab-x/` 被 gitignore（含两个 token 和 X 登录态 cookie），但直接部署会把它们传成公网可访问的静态文件。
+
+**规则**：部署前先导出干净副本：
+
+```bash
+rm -rf .deploy-tmp && mkdir .deploy-tmp
+git archive HEAD | tar -x -C .deploy-tmp
+npx wrangler pages deploy .deploy-tmp --project-name=<name> --branch=main
+rm -rf .deploy-tmp
+```
+
+`git archive HEAD` 只导出已提交内容，gitignore 排除的天然不在其中，`functions/` 会被正常包含。
+
+**部署后必须验证敏感路径**。注意别被 SPA 兜底骗了——配了兜底的站点对任意路径都返回 200 + index.html。判断方法是比内容哈希：
+
+```bash
+curl -s "$BASE/path/to/.env" | md5sum
+curl -s "$BASE/" | md5sum        # 两者相同 = 是兜底页，文件不存在
+```
+
+---
+
 ## 接第三方 API 前，先测 CORS 预检
 
 **踩坑**（2026-08-23，在线抓取）：需求设想是浏览器直接持令牌调 `importer-x.hitu.me`。动手前花两条 curl 验证，发现 `OPTIONS` 返回 405 且无任何 `Access-Control-Allow-*` 头——浏览器根本连不上。如果先写完前端再联调，整个方案要推倒重来。
