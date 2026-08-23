@@ -68,6 +68,10 @@ a:hover { color: var(--accent-hover); }
 .section-heading h2 { font-size: 0.95rem; font-weight: 700; }
 .section-heading h2 em { font-style: normal; color: var(--muted); font-weight: 500; font-size: 0.75rem; }
 .section-heading p { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+/* 标题行右侧的小动作按钮（如设置齿轮）：margin-left:auto 推到最右，不动原有 flex 规则 */
+.heading-action { margin-left: auto; width: 30px; height: 30px; line-height: 1; font-size: 0.9rem; flex-shrink: 0; align-self: center; }
+.importer-settings { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.75rem; border: 1px dashed var(--border); border-radius: 10px; background: var(--bg); }
+.importer-settings code { font-size: 0.72rem; background: var(--card); padding: 0.1rem 0.3rem; border-radius: 4px; }
 .hidden { display: none !important; }
 
 .segmented { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; gap: 3px; }
@@ -170,7 +174,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .safe-guides.hidden { display: none; }
 .sg-line { position: absolute; }
 .sg-top { left: 0; right: 0; top: 75px; border-top: 1.5px dashed rgba(254, 44, 85, 0.85); }
-.sg-right { top: 0; bottom: 0; right: 75px; border-right: 1.5px dashed rgba(254, 44, 85, 0.85); }
+.sg-right { top: 0; bottom: 0; right: 78px; border-right: 1.5px dashed rgba(254, 44, 85, 0.85); }
 .sg-bottom { left: 0; right: 0; bottom: 150px; border-bottom: 1.5px dashed rgba(254, 44, 85, 0.85); }
 .sg-left { top: 0; bottom: 0; left: 30px; border-left: 1.5px dashed rgba(254, 44, 85, 0.6); }
 .sg-label { position: absolute; font-size: 10px; line-height: 1; padding: 3px 6px; border-radius: 4px; background: rgba(254, 44, 85, 0.85); color: #fff; white-space: nowrap; }

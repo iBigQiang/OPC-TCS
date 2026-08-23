@@ -67,14 +67,35 @@
       </section>
 
       <section class="control-section hidden" id="fetch-section">
-        <div class="section-heading"><span>02</span><div><h2>在线抓取</h2><p>贴一条推文链接，直接抓成卡片</p></div></div>
-        <!-- 功能未上线，控件保持 disabled 而非隐藏，让人一眼看懂将来长什么样 -->
-        <input class="text-input" id="fetch-url" type="url" placeholder="https://x.com/用户名/status/推文ID" disabled />
-        <div class="chip-row">
-          <button class="chip" id="fetch-go" disabled>抓取这条</button>
-          <span class="mini-label">即将上线</span>
+        <div class="section-heading">
+          <span>02</span>
+          <div><h2>在线抓取</h2><p>贴一条推文链接，直接抓成卡片</p></div>
+          <button class="icon-button heading-action" id="importer-toggle" title="抓取服务设置">⚙</button>
         </div>
-        <p class="mini-label">将支持粘贴单条推文链接，自动带出正文、发布时间与互动数据，不用手动复制。想批量导入自己的推文，现在可以用左栏「04 用 X API 同步推文」。</p>
+        <input class="text-input" id="fetch-url" type="url" placeholder="https://x.com/用户名/status/推文ID" />
+        <div class="chip-row">
+          <button class="chip" id="fetch-go">抓取这条</button>
+          <span class="mini-label" id="fetch-status"></span>
+        </div>
+
+        <div class="importer-settings hidden" id="importer-settings">
+          <div class="option">
+            <label class="mini-label" for="importer-url">接口地址</label>
+            <input class="text-input" id="importer-url" type="url" placeholder="https://importer-x.hitu.me/import/twitter" />
+          </div>
+          <div class="option">
+            <label class="mini-label" for="importer-token">访问令牌</label>
+            <input class="text-input" id="importer-token" type="password" placeholder="IMPORT_SERVICE_TOKEN" autocomplete="off" />
+          </div>
+          <div class="chip-row">
+            <button class="chip" id="importer-save">保存</button>
+            <button class="chip" id="importer-clear">清除</button>
+            <span class="mini-label" id="importer-status"></span>
+          </div>
+          <p class="mini-label">令牌只存在你自己的浏览器里（localStorage），不会上传，也不会写进部署的站点。</p>
+        </div>
+
+        <p class="mini-label">抓到的推文会存进推文库并直接上卡，随后可在「自由编辑」里继续改。</p>
       </section>
 
       <section class="control-section hidden" id="custom-section">

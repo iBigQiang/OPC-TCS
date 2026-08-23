@@ -4,6 +4,47 @@
 
 ---
 
+## 接第三方 API 前，先测 CORS 预检
+
+**踩坑**（2026-08-23，在线抓取）：需求设想是浏览器直接持令牌调 `importer-x.hitu.me`。动手前花两条 curl 验证，发现 `OPTIONS` 返回 405 且无任何 `Access-Control-Allow-*` 头——浏览器根本连不上。如果先写完前端再联调，整个方案要推倒重来。
+
+**规则**：接任何外部 API 之前，先跑这两条：
+
+```bash
+curl -sI <api>                       # 看响应头有没有 access-control-*
+curl -s -i -X OPTIONS <api> -H "Origin: https://your-site" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: content-type,authorization"
+```
+
+预检不通过就必须有服务端中转，这是架构决策，越早知道越好。另外**留意接口文档里的设计意图声明**——本例文档写着「前端页面不直接持有 token」，这句话本身就预示了没有 CORS 头。
+
+---
+
+## 「可配置的转发地址」= 开放代理，必须白名单
+
+**规则**（2026-08-23）：只要同时具备「服务端代为发请求」和「目标地址由前端传入」这两个特性，就是 SSRF 漏洞——任何人都能借你的服务器出口去打任意地址（包括内网）。必须在服务端强制校验：协议白名单 + host 白名单，拒绝其余。
+
+这类风险是功能组合出来的，不在任何单个需求点里，需求方也不会提，得自己主动想。
+
+---
+
+## 往浏览器注入密钥又不想留痕
+
+**技巧**（2026-08-23）：测试需要把真实令牌写进页面 localStorage，但不想让它出现在对话记录/日志里。让 Playwright 先导航到 `file:///…/.env` 读取，令牌只在浏览器进程内流转，返回值只回传长度：
+
+```js
+await page.goto('file:///D:/path/to/.env');
+const token = await page.evaluate(() => (document.body.textContent.match(/KEY\s*=\s*['"]?([^'"\r\n]+)/) || [])[1]);
+await page.goto('http://127.0.0.1:8799/');
+await page.evaluate(t => localStorage.setItem('k', t), token);
+return { 令牌读到: token.length > 0 };   // 只回传长度，不回传值
+```
+
+注意 Playwright 的代码沙箱里没有 `require`，动态 `import()` 也不可用，读不了文件系统——`file://` 导航是可行的替代。
+
+---
+
 ## 枚举值从 2 个扩到 3 个，先 grep 出所有基于它的分支
 
 **踩坑**（2026-08-23，「选择内容」三 Tab）：`state.tab` 原本只有 `library`/`custom`，全项目有 5 处 `state.tab === "custom" ? A : B` 的三元判断。加第三个值 `fetch` 时我假设「新值天然落到 else 分支就对了」，结果 else 分支只认 `state.selected`——而带 `?text=` 参数进来时它是 null，切到新 tab 卡片正文整个变空。

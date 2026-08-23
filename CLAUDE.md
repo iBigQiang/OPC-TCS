@@ -4,15 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目性质
 
-把推文渲染成可发布的图片卡片（3:4 / 9:16 竖图、透明 PNG、3 秒动效 MP4）。**纯静态、零框架、零构建、无后端**——没有 package.json，没有测试框架，没有 lint 配置。两个第三方库已 vendored 进 `vendor/`，用 `<script>` 直接引入。
+把推文渲染成可发布的图片卡片（3:4 / 9:16 竖图、透明 PNG、3 秒动效 MP4）。**纯静态、零框架、零构建**——没有 package.json，没有测试框架，没有 lint 配置。两个第三方库已 vendored 进 `vendor/`，用 `<script>` 直接引入。
 
-改代码只涉及 4 个文件：`index.html` / `styles.css` / `app.js` / `profile.json`。
+唯一的服务端代码是 `functions/api/importer.js`（Cloudflare Pages Function），只做一件事：把「在线抓取」的请求转发给 importer-x 服务。存在的理由是那个服务不发 CORS 头，浏览器直连会被预检拦掉。
+
+改代码主要涉及 5 个文件：`index.html` / `styles.css` / `app.js` / `profile.json` / `functions/api/importer.js`。
 
 ## 常用命令
 
 ```bash
 # 起本地服务（必须走 http，直接双击 index.html 不行——要 fetch profile.json / posts.json / manifest.json）
 python3 -m http.server 8798
+
+# 要验证「在线抓取」必须用这个：python 起的服务没有 functions/，/api/importer 会 404
+npx wrangler pages dev .
 
 # 重建推文库：data/raw/page-*.json（X API 原始返回）→ posts.json
 python3 scripts/build_posts.py
@@ -81,7 +86,19 @@ npx wrangler pages deploy .
 
 **embed 模式故意忽略 localStorage**（`init()` 里 `loadProfile(q.get("embed") !== "1")`），保证同一条链接在任何设备上出图一致。
 
-localStorage keys：`tcs-profile` / `tcs-posts` / `tcs-xkey` / `tcs-xsync` / `tcs-live-hint`。
+localStorage keys：`tcs-profile` / `tcs-posts` / `tcs-xkey` / `tcs-xsync` / `tcs-live-hint` / `tcs-importer`。
+
+### 在线抓取
+
+「在线抓取」Tab 走 `POST /api/importer`（同源 Function）→ 转发给 `importer-x.hitu.me`。
+
+三个要点：
+
+1. **必须转发**，不能前端直连——importer-x 的 `OPTIONS` 返回 405 且无任何 `Access-Control-Allow-*` 头。
+2. **Function 里必须做 upstream 白名单校验**。接口地址允许用户在设置里改，不校验的话这个 Function 就是开放代理，谁都能借 Cloudflare 出口打任意地址（SSRF）。
+3. **令牌只存 `localStorage["tcs-importer"]`**，不硬编码进 `functions/`、不进仓库。Function 保留了 `env.X_IMPORTER_TOKEN` 兜底分支，配上就是对所有访客开放（会消耗部署者自己的抓取服务），默认不配。
+
+上游响应里 `thread.tweets[0].text` 才是主推文原文，`promptText` 是主推 + 整条 thread 的拼接。字段映射时 `metrics.retweets` → 本项目的 `reposts`。
 
 ### Agent 接口：URL 参数 → embed 渲染
 

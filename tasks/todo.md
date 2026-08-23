@@ -1,64 +1,59 @@
-# 当前迭代：「选择内容」三 Tab + 首屏默认上卡 —— 已完成
+# 当前迭代：在线抓取功能落地 —— 已完成
 
-**方案文档**：[2026-08-23-选择内容三Tab与首屏默认上卡方案](../docs/开发及迭代方案调研报告/2026-08-23-选择内容三Tab与首屏默认上卡方案.md)
+**方案文档**：[2026-08-23-在线抓取功能实现方案](../docs/开发及迭代方案调研报告/2026-08-23-在线抓取功能实现方案.md)
 **开发日志**：[DEVLOG](../docs/DEVLOG.md)
 
 ## 检查项
 
-### A. 三个 Tab
-- [x] 按钮改成 推文库 / 在线抓取 / 自由编辑，`active` 挪到 `tab-library`
-- [x] 副标题改「从推文库选一条，或自己写」
-- [x] `#library-section` 去 `hidden`；`#custom-section` 加 `hidden`
-- [x] 新建 `#fetch-section` 占位（控件 disabled + 说明文字）
-- [x] 「写文案」→「编辑文案」
+### A. 服务端转发
+- [x] 新建 `functions/api/importer.js`
+- [x] SSRF 防护：https 强制 + host 白名单（`IMPORTER_ALLOW_HOSTS` 可扩展）
+- [x] 令牌走请求头，`env.X_IMPORTER_TOKEN` 兜底分支预留
+- [x] 固定 `includeRaw:false`，`timeoutSeconds` 默认 90 + AbortSignal 超时
+- [x] 原样透传上游状态码
 
-### B. 首屏上卡
-- [x] `state.tab` 默认 `"custom"` → `"library"`
-- [x] init 取值改 `state.filtered[0] || state.posts[0]`
+### B. 面板 UI
+- [x] 齿轮按钮进标题行右侧（`.heading-action`）
+- [x] 设置区：接口地址 / 访问令牌 / 保存 / 清除 / 说明
+- [x] 抓取输入框 + 按钮 + 状态位（去掉 disabled）
 
-### C. 智能带入
-- [x] `state.customSeed` 记录上次带入的原文
-- [x] `primeCustomText(force)`
-- [x] Tab 绑定加第三项，切 custom 时调用
-- [x] 「用推文库选中的那条替换」按钮（force 出口）
+### C. 前端逻辑
+- [x] `IMPORTER_KEY = "tcs-importer"`，`loadImporterCfg()` / `applyImporterCfgToInputs()`
+- [x] `mapImportedPost()` 字段映射（`retweets` → `reposts`）
+- [x] `fetchTweetByUrl()`：链接校验 → 请求 → 去重入库 → 持久化 → 选中 → 带入编辑框 → 切 Tab
+- [x] 错误码翻译（400/401/404/502/504）
+- [x] 回车键触发抓取
 
-### D. 实施中发现的缺陷
-- [x] 抽 `fromLibrary()` / `currentText()`，修「带 ?text= 切到在线抓取卡片变空」
-- [x] `renderCard()` / `buildShareUrl()` / 复制文案 / 两处导出 tag 统一走新函数
-- [x] 清掉残留的 `isCustom` 引用（`source-link` 那处）
+### D. 文档
+- [x] CLAUDE.md：项目性质（不再是「无后端」）、`wrangler pages dev` 命令、在线抓取三要点
+- [x] `.gitignore` 加 `.dev.vars`
 
-### E. 样式
-- [x] `.text-input:disabled` / `.chip:disabled` 禁用态
-
-### F. 验证
-- [x] 首屏（tab / 高亮 / 正文 / 卡片高 367）
-- [x] 三 Tab 互斥，任意顺序切换卡片不变空
-- [x] 带入四分支（带入 / 覆盖 / 保留改动 / 强制替换）
-- [x] `?text=` 不被推文库覆盖
-- [x] 在线抓取占位控件禁用
-- [x] 三条导出管线 embed 回归
-- [x] embed 不带 text 也能出图
-- [x] 控制台 0 error
+### E. 验证
+- [x] Function 五条路径（无令牌 / SSRF / http / 缺链接 / 真实抓取 200 @4.18s）
+- [x] UI 五条路径（未配令牌 / 链接校验 / 错误令牌 / 真实抓取 / 去重）
+- [x] 数据正确性核对（likes 196 / views 15700 / reposts 34）
+- [x] 入库 + 上卡 + 自动切到自由编辑 + 编辑框带入
+- [x] 回归：三 Tab 互斥、三条导出管线、控制台 0 error
 - [x] 更新 DEVLOG
-
-### G. 仓库卫生
-- [x] `.gitignore` 加 `docs/feedgrab-x/`（含 token 与 X 登录态，不可提交）
 
 ## 复盘
 
-### 顺利的部分
+### 关键判断
 
-方案阶段先摸链路，发现 `init()` 里早就有「非 custom tab 自动选第一条」的分支，只是默认值挡着从未走到——首屏上卡这个需求实际只改了一个默认值加一个取值，没写新逻辑。
+**先测 CORS 再动手是对的。** 强哥最初的设想是浏览器直接持令牌调 API。如果照做，写完全部前端代码才会在联调时撞上预检 405，整个方案要推倒。花两条 curl 先验证，把架构问题挡在编码之前。
 
-### 踩到的坑
+**接口文档里那句「前端页面不直接持有 token」不是随口一提**，它同时解释了为什么没有 CORS 头——服务本来就不打算被浏览器直连。读文档时留意这类设计意图声明，能提前预判技术约束。
 
-**加第三个枚举值时，要把所有二分判断都找出来。** `state.tab` 原本只有 `library`/`custom` 两个值，全项目有 5 处 `state.tab === "custom" ? A : B` 的三元判断。加了 `fetch` 后这些判断的 else 分支语义就变了——只认 `state.selected`，而带 `?text=` 进来时它是 null，导致卡片变空。
+### 安全上的主动防护
 
-教训：枚举从 2 值扩到 3 值时，`grep` 出所有基于它的分支逐个过一遍，别假设「新值天然落到 else 分支就对了」。这次顺手抽成 `fromLibrary()` / `currentText()` 两个函数，以后再加 tab 只改一处。
+方案里加了原始需求没提的 SSRF 白名单。因为「接口地址可配置」+「服务端转发」这两个特性叠加，等于开放代理——任何人都能 POST 到 `/api/importer` 让 Cloudflare 的服务器去请求任意地址。这类风险是功能组合出来的，不在单个需求点里，得主动想。
 
-还有一个连带遗漏：删掉 `const isCustom` 时只看了它在函数前几行的用法，没 grep 整个函数体，漏了 60 行外 `source-link` 那处，浏览器直接报 `ReferenceError`。**删变量前先 grep 全文件。**
+### 测试技巧
+
+需要把真实令牌注入浏览器又不想让它出现在对话记录里：让 Playwright 先 `page.goto('file:///…/.env')` 读取，令牌只在浏览器进程内流转，返回值只回传长度。比在 evaluate 参数里明文传安全。
 
 ### 遗留
 
+- **线上还不可用**：Function 要 `npx wrangler pages deploy .` 才生效，本轮只提交代码
+- 抓取结果的 `media[]`（图片）目前丢弃，卡片只用正文
 - 单列（<980）下背景缩略图网格 `repeat(5,1fr)` 铺满时偏大
-- 「在线抓取」功能待实现（`docs/feedgrab-x/` 是相关的本地服务参考）

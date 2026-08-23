@@ -65,6 +65,7 @@ function todayISO() {
 
 const PROFILE_KEY = "tcs-profile";
 const POSTS_KEY = "tcs-posts";
+const IMPORTER_KEY = "tcs-importer";
 
 async function loadProfile(useLocalOverride = true) {
   try {
@@ -701,6 +702,120 @@ async function xSync() {
   }
 }
 
+/* ---------- 在线抓取：单条推文链接 → 推文库 ----------
+   请求走同源的 /api/importer（Cloudflare Pages Function）转发，
+   因为抓取服务不发 CORS 头，浏览器直连会被预检拦掉。
+   令牌只存本机 localStorage，不进代码库也不进部署产物。 */
+
+const DEFAULT_IMPORTER_URL = "https://importer-x.hitu.me/import/twitter";
+
+function loadImporterCfg() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(IMPORTER_KEY) || "null");
+    if (raw && typeof raw === "object") {
+      return { url: raw.url || DEFAULT_IMPORTER_URL, token: raw.token || "" };
+    }
+  } catch { /* 忽略损坏的本机数据 */ }
+  return { url: DEFAULT_IMPORTER_URL, token: "" };
+}
+
+function applyImporterCfgToInputs() {
+  const cfg = loadImporterCfg();
+  $("importer-url").value = cfg.url;
+  $("importer-token").value = cfg.token;
+}
+
+/* 把抓取结果映射成推文库条目。上游的 retweets 对应本项目的 reposts，是唯一需要改名的字段 */
+function mapImportedPost(d) {
+  const main = (d.thread && d.thread.tweets && d.thread.tweets[0] && d.thread.tweets[0].text) || d.promptText || "";
+  const m = d.metrics || {};
+  const src = d.source || {};
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return {
+    id: "x-" + (src.tweetId || String(Date.now())),
+    date: d.date || todayISO(),
+    datetime: d.createdAtRaw || d.date || "",
+    text: main.trim(),
+    long: main.length > 300,
+    sourceUrl: src.url || "",
+    topic: "在线抓取",
+    metrics: {
+      likes: num(m.likes), replies: num(m.replies), reposts: num(m.retweets),
+      bookmarks: num(m.bookmarks), views: num(m.views),
+    },
+  };
+}
+
+async function fetchTweetByUrl() {
+  const btn = $("fetch-go");
+  const status = $("fetch-status");
+  const url = $("fetch-url").value.trim();
+
+  if (!/^https?:\/\/(?:www\.)?(?:x|twitter)\.com\/[^/]+\/status\/\d+/i.test(url)) {
+    status.textContent = "请填一条形如 https://x.com/用户名/status/数字ID 的链接";
+    return;
+  }
+  const cfg = loadImporterCfg();
+  if (!cfg.token) {
+    $("importer-settings").classList.remove("hidden");
+    status.textContent = "还没填访问令牌，先在下面的设置里保存";
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = "抓取中…最长约 90 秒";
+  try {
+    const res = await fetch("/api/importer", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Importer-Token": cfg.token,
+        "X-Importer-Url": cfg.url,
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (res.status === 404) throw new Error("本地没有跑转发接口，请改用 npx wrangler pages dev . 启动");
+    let data = {};
+    try { data = await res.json(); } catch { /* 上游可能返回非 JSON */ }
+    if (!res.ok) {
+      const msg = data.error || data.detail || "";
+      throw new Error(
+        res.status === 400 ? (msg || "链接无效，或不是支持的 X/Twitter 推文") :
+        res.status === 401 ? "访问令牌不对或已失效，去设置里检查" :
+        res.status === 504 ? "抓取超时，稍后再试" :
+        res.status === 502 ? "抓取失败（X 页面结构变化或服务端 cookie 失效）" :
+        msg || `抓取失败（HTTP ${res.status}）`
+      );
+    }
+
+    const post = mapImportedPost(data);
+    if (!post.text) throw new Error("抓到了但正文是空的，可能是这条推文只有图片");
+
+    // 同一条链接重复抓取时替换旧记录，不堆重复条目
+    const key = post.sourceUrl || post.id;
+    const idx = state.posts.findIndex((p) => (p.sourceUrl || p.id) === key);
+    if (idx >= 0) state.posts[idx] = post; else state.posts.unshift(post);
+
+    try { localStorage.setItem(POSTS_KEY, JSON.stringify(state.posts)); }
+    catch { alert("推文库太大无法保存到本机，本条仅本次会话有效。"); }
+
+    state.chip = { kind: "all", v: "" };
+    state.month = "";
+    state.search = "";
+    $("search").value = "";
+    refreshLibrary();
+    selectPost(post);
+    primeCustomText(true);   // 抓完直接可编辑，省掉一次手动复制
+    $("tab-custom").click();
+    status.textContent = (idx >= 0 ? "已更新：" : "已抓取：") + post.date + " · " + post.text.length + " 字";
+  } catch (err) {
+    status.textContent = "失败：" + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 /* ---------- 导出 Live 图（3 秒动效 MP4，WebCodecs 编码） ----------
    卡片完全静止，只有背景缓慢推近（Ken Burns）。
    手机端用 intoLive / 快捷指令把 MP4 转成实况照片后即可按 Live 图发布。 */
@@ -828,6 +943,22 @@ function bind() {
   });
 
   $("custom-reseed").onclick = () => { primeCustomText(true); renderCard(); };
+
+  $("fetch-go").onclick = fetchTweetByUrl;
+  $("fetch-url").onkeydown = (e) => { if (e.key === "Enter") fetchTweetByUrl(); };
+  $("importer-toggle").onclick = () => $("importer-settings").classList.toggle("hidden");
+  $("importer-save").onclick = () => {
+    const url = $("importer-url").value.trim() || DEFAULT_IMPORTER_URL;
+    const token = $("importer-token").value.trim();
+    localStorage.setItem(IMPORTER_KEY, JSON.stringify({ url, token }));
+    $("importer-status").textContent = token ? "已保存到本机" : "已保存（令牌为空）";
+    setTimeout(() => ($("importer-status").textContent = ""), 2000);
+  };
+  $("importer-clear").onclick = () => {
+    localStorage.removeItem(IMPORTER_KEY);
+    applyImporterCfgToInputs();
+    $("importer-status").textContent = "已清除本机保存的配置";
+  };
 
   bindSegmented([[$("mode-poster"), "poster"], [$("mode-tall"), "tall"], [$("mode-card"), "card"]], (v) => { state.mode = v; renderCard(); });
   bindSegmented([[$("theme-light"), "light"], [$("theme-dark"), "dark"]], (v) => { state.theme = v; renderCard(); });
@@ -1148,6 +1279,7 @@ async function init() {
   refreshLibrary();
   bind();
   syncSliderInputs();
+  applyImporterCfgToInputs();
   initDrag();
   renderBackgroundGrid();
   fitStageScale();
