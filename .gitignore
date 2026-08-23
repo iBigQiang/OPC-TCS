@@ -1,2 +1,8 @@
 .DS_Store
 Thumbs.db
+
+# Cloudflare Pages 本地缓存（含 account_id，不应提交）
+.wrangler/
+
+# Playwright MCP 的截图/快照产物
+.playwright-mcp/

@@ -1,4 +1,4 @@
-/* Ray 推文卡片工场 —— 无框架单页应用 */
+/* Ray OPC 推文切片工场 —— 无框架单页应用 */
 
 // 后台标签页里 rAF 被冻结，会卡死 html-to-image 导出和卡片测量；隐藏时退化为 setTimeout
 const _raf = window.requestAnimationFrame.bind(window);
@@ -7,7 +7,7 @@ window.requestAnimationFrame = (cb) =>
 
 const $ = (id) => document.getElementById(id);
 
-const DEFAULT_PROFILE = { name: "你的名字", handle: "yourname", avatar: "avatar.png", verified: true };
+const DEFAULT_PROFILE = { name: "你的名字", handle: "yourname", avatar: "avatar.jpg", verified: true };
 
 const state = {
   profile: { ...DEFAULT_PROFILE },
@@ -15,12 +15,12 @@ const state = {
   filtered: [],
   selected: null,        // 当前上卡的推文对象
   customText: "",
-  tab: "library",        // library | custom
+  tab: "custom",        // library | custom
   mode: "poster",        // poster | card
   theme: "light",        // light | dark
   metricsOn: true,
   // 默认落在抖音安全区中央：右侧 140px / 底部 300px / 顶部 150px / 左侧 60px（画布px，预览折半）
-  cardScale: 92,         // 用户设置的缩放（%），在 fitScale 基础上叠加
+  cardScale: 95,         // 用户设置的缩放（%），在 fitScale 基础上叠加
   fitScale: 1,           // 长文自动适配画框的缩放
   cardX: -20,            // 拖动偏移（px，相对画框中心）
   cardY: -37,
@@ -89,14 +89,16 @@ function saveProfileOverride(patch) {
 
 function applyProfile() {
   const p = state.profile;
-  const avatarSrc = p.avatarData || p.avatar || "avatar.png";
+  const avatarSrc = p.avatarData || p.avatar || "avatar.jpg";
   $("tc-avatar").src = avatarSrc;
-  $("brand-avatar").src = avatarSrc;
+  const brandAvatar = $("brand-avatar");
+  if (brandAvatar) brandAvatar.src = avatarSrc;
   $("profile-avatar-preview").src = avatarSrc;
   $("tc-name-text").textContent = p.name;
   $("tc-handle-text").textContent = "@" + p.handle;
   $("tc-badge").style.display = p.verified ? "" : "none";
-  $("brand-eyebrow").textContent = `${p.name} · @${p.handle}`.toUpperCase();
+  const brandEyebrow = $("brand-eyebrow");
+  if (brandEyebrow) brandEyebrow.textContent = `${p.name} · @${p.handle}`.toUpperCase();
   $("profile-name").value = p.name;
   $("profile-handle").value = p.handle;
   $("badge-on").classList.toggle("active", !!p.verified);
@@ -1049,7 +1051,7 @@ function buildShareUrl(embed) {
   if (state.mode !== "poster") q.set("mode", state.mode);
   if (state.theme !== "light") q.set("theme", state.theme);
   // 与初始默认值一致的项不写进链接，保持简短（省略时页面会用同样的默认值）
-  if (state.cardScale !== 92) q.set("scale", state.cardScale);
+  if (state.cardScale !== 95) q.set("scale", state.cardScale);
   if (state.cardOpacity !== 100) q.set("opacity", state.cardOpacity);
   if (Math.round(state.cardX) !== -20) q.set("x", Math.round(state.cardX));
   if (Math.round(state.cardY) !== -37) q.set("y", Math.round(state.cardY));

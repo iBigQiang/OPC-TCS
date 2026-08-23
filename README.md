@@ -86,7 +86,7 @@ index.html / styles.css / app.js   应用本体（vanilla JS，无依赖）
 profile.json                        默认账号信息（部署你自己的实例时改这里）
 posts.json                          你的推文库（可选，作者的库已内置）
 posts.sample.json                   示例数据（兜底加载）
-avatar.png                          默认头像
+avatar.jpg                          默认头像
 backgrounds/ + manifest.json        内置背景库
 vendor/html-to-image.js             导出库（本地 vendored，v1.11.13）
 scripts/build_posts.py              X API 原始数据 → posts.json
@@ -102,7 +102,7 @@ data/raw/                           X API 原始返回（增量更新的基础�
 npx vercel deploy   # 或 Netlify / GitHub Pages / Cloudflare Pages
 ```
 
-部署前把 `profile.json`、`avatar.png`、`posts.json` 换成你自己的即可；访客在 UI 里的修改只影响他们自己的浏览器。
+部署前把 `profile.json`、`avatar.jpg`、`posts.json` 换成你自己的即可；访客在 UI 里的修改只影响他们自己的浏览器。
 
 ## 自定义
 
