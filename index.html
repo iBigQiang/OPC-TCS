@@ -185,7 +185,6 @@
         <span class="dot"></span><strong id="preview-label">3:4 竖图 · 1080×1440</strong>
         <span class="drag-hint" id="drag-hint">拖动卡片调整位置 · 双击回中</span>
         <div class="preview-actions">
-          <button id="guides-toggle" class="ghost-btn active">安全区 ✓</button>
           <a id="source-link" href="#" target="_blank" rel="noopener">查看原推 ↗</a>
           <button id="shuffle-metrics" class="ghost-btn">换一组数据</button>
           <button id="copy-text" class="ghost-btn">复制文案</button>
@@ -222,8 +221,10 @@
               <span class="tc-x-brand"><svg class="tc-x-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
             </div>
             <div class="tc-body" id="tc-body"></div>
-            <!-- 推文配图（视频推文取封面）。crossorigin 是必须的：没有它 html-to-image 光栅化时会污染 canvas，导出直接失败 -->
-            <img class="tc-media hidden" id="tc-media" crossorigin="anonymous" alt="" />
+            <!-- 推文配图（视频推文取封面）。crossorigin 是必须的：没有它 html-to-image 光栅化时会污染 canvas。
+                 src 永远保持合法（无图时用 1×1 透明占位）——空 src 的 <img> 会让 html-to-image 直接报错 -->
+            <img class="tc-media hidden" id="tc-media" crossorigin="anonymous" alt=""
+                 src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" />
             <div class="tc-metrics" id="tc-metrics"></div>
           </div>
         </div>
@@ -254,12 +255,19 @@
               <button id="metrics-off">隐藏</button>
             </div>
           </div>
-          <!-- 只在当前推文带图时显示，由 renderCard() 控制 -->
-          <div class="option hidden" id="media-option">
-            <span class="mini-label">推文配图</span>
+          <!-- 卡内图片常驻显示：藏起来会让人以为功能不存在 -->
+          <div class="option" id="media-option">
+            <span class="mini-label">卡内图片</span>
             <div class="segmented small">
               <button id="media-on" class="active">显示</button>
               <button id="media-off">隐藏</button>
+            </div>
+          </div>
+          <div class="option" id="guides-option">
+            <span class="mini-label">安全区参考线</span>
+            <div class="segmented small">
+              <button id="guides-on" class="active">显示</button>
+              <button id="guides-off">隐藏</button>
             </div>
           </div>
           <div class="option full">

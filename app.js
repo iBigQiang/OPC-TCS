@@ -16,6 +16,7 @@ const state = {
   selected: null,        // 当前上卡的推文对象
   customText: "",
   customSeed: "",        // 上次带入编辑框的推文原文，用来判断用户改没改过
+  customDate: "",        // 编辑框内容的来源推文发布日期，空则用今天
   tab: "library",        // library | fetch | custom
   mode: "poster",        // poster | card
   theme: "light",        // light | dark
@@ -43,6 +44,9 @@ const state = {
 };
 
 const LIST_CAP = 200;
+/* 1×1 透明 GIF：卡片配图的占位。html-to-image 遇到没有 src 的 <img> 会直接抛错，
+   所以 #tc-media 的 src 必须始终合法，无图时用它顶着（元素本身仍是 hidden）。 */
+const BLANK_PNG = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
 /* ---------- 工具 ---------- */
 
@@ -284,6 +288,7 @@ function primeCustomText(force) {
   if (!force && state.customText.trim() && state.customText !== state.customSeed) return;
   state.customText = state.selected.text;
   state.customSeed = state.selected.text;
+  state.customDate = state.selected.date || "";   // 日期跟着来源推文走，不用今天
   $("custom-text").value = state.customText;
 }
 
@@ -313,6 +318,13 @@ function fromLibrary() {
 function currentText() {
   return fromLibrary() ? state.selected.text : state.customText;
 }
+/* 编辑框里的内容是从某条推文带过来的时候，日期要跟着那条推文走。
+   卡片是那条推文的样子，用抓取当天的日期就错了。 */
+function currentDate() {
+  if (state.dateOverride) return state.dateOverride;
+  if (fromLibrary()) return state.selected.date;
+  return state.customDate || todayISO();
+}
 
 /* 正文渲染：链接 / @提及 / #话题 显示为 X 蓝，与真实推文一致 */
 function renderBody(text) {
@@ -325,7 +337,7 @@ function renderBody(text) {
 
 function renderCard() {
   const text = currentText() || "写点什么……";
-  const date = state.dateOverride || (fromLibrary() ? state.selected.date : todayISO());
+  const date = currentDate();
 
   const body = $("tc-body");
   body.innerHTML = renderBody(text);
@@ -368,13 +380,13 @@ function renderCard() {
     link.style.display = "none";
   }
 
-  // 推文配图：换图时才重设 src，避免每次渲染都触发重新加载导致闪烁
+  // 推文配图：换图时才重设 src，避免每次渲染都触发重新加载导致闪烁。
+  // 无图时回落到透明占位而不是清空 src——空 src 的 <img> 会让 html-to-image 光栅化直接失败
   const mediaEl = $("tc-media");
   const showMedia = !!state.mediaUrl && state.mediaOn;
   mediaEl.classList.toggle("hidden", !showMedia);
-  if (showMedia && mediaEl.getAttribute("src") !== state.mediaUrl) {
-    mediaEl.src = state.mediaUrl;
-  }
+  const wantSrc = showMedia ? state.mediaUrl : BLANK_PNG;
+  if (mediaEl.getAttribute("src") !== wantSrc) mediaEl.src = wantSrc;
   $("media-option").classList.toggle("hidden", !state.mediaUrl);
 
   const stage = $("stage");
@@ -387,7 +399,7 @@ function renderCard() {
 
   // 安全区参考线只在竖图模式且开关打开时显示
   $("safe-guides").classList.toggle("hidden", !isFrame || !state.guidesOn);
-  $("guides-toggle").style.display = isFrame ? "" : "none";
+  $("guides-option").classList.toggle("hidden", !isFrame);   // 纯卡片没有画布，参考线无意义
   $("live-btn").style.display = isFrame ? "" : "none";
   $("dim-option").style.display = isFrame ? "" : "none"; // 纯卡片没背景可压
 
@@ -616,7 +628,7 @@ async function exportPng() {
       blob = await new Promise((res) => cv.toBlob(res, "image/png"));
     }
     const tag = fromLibrary() ? state.selected.id : "custom";
-    const name = `${state.profile.handle}-card-${(fromLibrary() ? state.selected.date : todayISO()).replaceAll("-", "")}-${tag}.png`;
+    const name = `${state.profile.handle}-card-${currentDate().replaceAll("-", "")}-${tag}.png`;
     deliverFile(blob, name, "点「保存 / 分享」存到相册，或长按图片保存");
   } catch (err) {
     alert("导出失败：" + err.message + "\n如果用了网络图片背景，可能是跨域限制，请下载后用「上传图片」。");
@@ -1054,6 +1066,7 @@ function bind() {
   bindSegmented([[$("theme-light"), "light"], [$("theme-dark"), "dark"]], (v) => { state.theme = v; renderCard(); });
   bindSegmented([[$("metrics-on"), true], [$("metrics-off"), false]], (v) => { state.metricsOn = v; renderCard(); });
   bindSegmented([[$("media-on"), true], [$("media-off"), false]], (v) => { state.mediaOn = v; renderCard(); });
+  bindSegmented([[$("guides-on"), true], [$("guides-off"), false]], (v) => { state.guidesOn = v; renderCard(); });
   // 图片决定卡片高度，加载完必须重测一次，否则 fitScale 用的是没图时的高度
   $("tc-media").onload = measureFitScale;
 
@@ -1069,7 +1082,12 @@ function bind() {
   $("search").oninput = (e) => { state.search = e.target.value; applyFilter(); };
   $("month-filter").onchange = (e) => { state.month = e.target.value; applyFilter(); };
   $("random-btn").onclick = randomPost;
-  $("custom-text").oninput = (e) => { state.customText = e.target.value; renderCard(); };
+  // 清空编辑框视为从头写，日期回到今天
+  $("custom-text").oninput = (e) => {
+    state.customText = e.target.value;
+    if (!state.customText.trim()) state.customDate = "";
+    renderCard();
+  };
   $("card-scale").oninput = (e) => { state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; applyCardTransform(); refreshAgentPrompt(); };
   $("card-opacity").oninput = (e) => { state.cardOpacity = Number(e.target.value); renderCard(); };
   // 字号会改变卡片高度，必须走全量渲染让 fitScale 重算；压暗只改一层 opacity，走轻量路径
@@ -1123,13 +1141,6 @@ function bind() {
     await navigator.clipboard.writeText($("agent-prompt").value);
     $("copy-agent").textContent = "已复制 ✓";
     setTimeout(() => ($("copy-agent").textContent = "复制这段指令"), 1400);
-  };
-
-  $("guides-toggle").onclick = () => {
-    state.guidesOn = !state.guidesOn;
-    $("guides-toggle").textContent = state.guidesOn ? "安全区 ✓" : "安全区";
-    $("guides-toggle").classList.toggle("active", state.guidesOn);
-    renderCard();
   };
 
   $("export-btn").onclick = exportPng;
@@ -1227,6 +1238,20 @@ const clampNum = (v, lo, hi, dflt) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt;
 };
+
+/* 把 state 回写到分段按钮。和滑块同理：URL 参数只改了 state，
+   按钮高亮还停在 HTML 里的初始值，会出现「参数生效了但按钮显示相反」的错位。 */
+function syncToggleButtons() {
+  const pick = (onId, offId, on) => {
+    $(onId).classList.toggle("active", !!on);
+    $(offId).classList.toggle("active", !on);
+  };
+  pick("metrics-on", "metrics-off", state.metricsOn);
+  pick("media-on", "media-off", state.mediaOn);
+  pick("guides-on", "guides-off", state.guidesOn);
+  pick("theme-light", "theme-dark", state.theme === "light");
+  ["poster", "tall", "card"].forEach((m) => $("mode-" + m).classList.toggle("active", state.mode === m));
+}
 
 /* 把 state 回写到滑块。URL 参数进来时只改了 state，拇指还停在 HTML 里的初始 value，
    会出现"标签写 120%、卡片也是 120%，拇指却在 95"的错位。 */
@@ -1356,6 +1381,9 @@ function buildShareUrl(embed) {
   const q = new URLSearchParams();
   const text = currentText();
   if (text) q.set("text", text);
+  // 不是今天才写：卡片显示的是来源推文的发布日期，不带上的话打开链接会变成打开当天
+  const date = currentDate();
+  if (date && date !== todayISO()) q.set("date", date);
   if (state.profile.name !== DEFAULT_PROFILE.name) q.set("name", state.profile.name);
   if (state.profile.handle !== DEFAULT_PROFILE.handle) q.set("handle", state.profile.handle);
   if (!state.profile.verified) q.set("verified", "0");
@@ -1391,6 +1419,7 @@ async function init() {
   refreshLibrary();
   bind();
   syncSliderInputs();
+  syncToggleButtons();
   applyImporterCfgToInputs();
   initDrag();
   renderBackgroundGrid();
