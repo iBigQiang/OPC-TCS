@@ -42,18 +42,22 @@ a:hover { color: var(--accent-hover); }
 .topnav-back:hover { color: #fff; }
 .topnav-back svg { width: 14px; height: 14px; }
 
-.hero { max-width: 1200px; margin: 0 auto; padding: 1.75rem 1.5rem 0.5rem; }
+.hero { max-width: 1480px; margin: 0 auto; padding: 1.75rem 1.5rem 0.5rem; }
 .hero h1 { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.3rem; }
 .hero p { color: var(--muted); font-size: 0.95rem; /*max-width: 720px;*/ }
 .hero-agent { margin-top: 0.5rem; font-size: 0.85rem; }
 
+/* 三栏：左控制 / 中预览 / 右样式。max-width 1480 是算出来的——840(两侧栏+gap) + 592(中列)
+   刚好让 540px 的 stage 不被 fitStageScale() 缩放，两侧还留 26px 呼吸。 */
 .workspace {
-  max-width: 1200px; margin: 0 auto; padding: 1rem 1.5rem 2rem;
-  display: grid; grid-template-columns: 400px 1fr; gap: 1.25rem; align-items: start;
+  max-width: 1480px; margin: 0 auto; padding: 1rem 1.5rem 2rem;
+  display: grid; grid-template-columns: 400px minmax(0, 1fr) 400px; gap: 1.25rem;
+  grid-template-areas: "left preview right"; align-items: start;
 }
 
-/* ---------- 左侧控制面板 ---------- */
-.control-panel { display: flex; flex-direction: column; gap: 1rem; }
+/* ---------- 控制面板（左右两栏共用同一套样式） ---------- */
+.control-panel { display: flex; flex-direction: column; gap: 1rem; grid-area: left; }
+.control-panel-right { grid-area: right; }
 .control-section {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.75rem;
@@ -129,10 +133,10 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .text-input:focus { border-color: var(--accent); background: #fff; }
 .agent-prompt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.7rem; line-height: 1.55; resize: vertical; }
 
-/* ---------- 右侧预览 ---------- */
+/* ---------- 中间预览 ---------- */
 /* min-width:0 —— grid 的 1fr 默认 min-width:auto，超长不换行内容会把列撑破 */
 .preview-panel {
-  position: sticky; top: 1rem; display: flex; flex-direction: column;
+  position: sticky; top: 1rem; display: flex; flex-direction: column; grid-area: preview;
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   overflow: hidden; box-shadow: var(--shadow); min-width: 0;
 }
@@ -154,6 +158,10 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .stage.tall .sg-top { top: 88px; }
 .stage.tall .sg-label-top { top: 92px; }
 .stage-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* 背景压暗：盖一层黑，opacity 由 renderCard() 写入。用叠层而非 filter:brightness——
+   前者与导出侧 ctx.fillRect(rgba(0,0,0,a)) 是同一套 source-over 混合，预览才能和成品逐像素对齐。
+   pointer-events:none 是必须的，否则会吃掉卡片拖拽的指针事件。 */
+.stage-dim { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
 
 /* 抖音安全区参考线（画布 1080×1440，预览为 1/2 缩放）：顶部 150px、右侧 140px、底部 300px、左侧 60px */
 .safe-guides { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
@@ -170,6 +178,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 
 .stage.card-only { height: auto; min-height: 0; box-shadow: none; overflow: visible; }
 .stage.card-only .stage-bg { display: none; }
+.stage.card-only .stage-dim { display: none; }   /* 没背景可压，留着会变成一块凭空的黑幕 */
 .stage.card-only .tweet-card { box-shadow: 0 18px 50px rgba(28, 25, 23, 0.28); }
 .stage .tweet-card.floating { position: absolute; left: 50%; top: 50%; cursor: grab; touch-action: none; margin-left: -4px; }
 .stage .tweet-card.floating:active { cursor: grabbing; }
@@ -185,10 +194,14 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .tc-handle { color: #536471; font-size: 13.5px; margin-top: 1px; }
 .tc-x-brand { display: flex; align-items: center; align-self: flex-start; color: #0f1419; }
 .tc-x-logo { width: 20px; height: 20px; }
-.tc-body { margin-top: 14px; font-size: 17px; line-height: 1.62; white-space: pre-wrap; word-break: break-word; }
-.tc-body.size-m { font-size: 15px; line-height: 1.58; }
-.tc-body.size-s { font-size: 13px; line-height: 1.55; }
-.tc-body.size-xs { font-size: 11.5px; line-height: 1.5; }
+/* 正文字号：--tc-body-size 是用户滑块定的基准（默认 17px），renderCard() 写进 inline style。
+   四档是按文本长度自动降级的相对倍率（原绝对值 17/15/13/11.5 换算而来），
+   这样"手动定基准"和"长文自动缩"能叠加，长文不会溢出画框。
+   line-height 无单位，自动跟随字号，四档现值原样保留。 */
+.tc-body { margin-top: 14px; font-size: var(--tc-body-size, 17px); line-height: 1.62; white-space: pre-wrap; word-break: break-word; }
+.tc-body.size-m { font-size: calc(var(--tc-body-size, 17px) * 0.88); line-height: 1.58; }
+.tc-body.size-s { font-size: calc(var(--tc-body-size, 17px) * 0.76); line-height: 1.55; }
+.tc-body.size-xs { font-size: calc(var(--tc-body-size, 17px) * 0.68); line-height: 1.5; }
 .tc-body .tc-link { color: #1d9bf0; }
 .tc-metrics { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eff3f4; display: flex; gap: 18px; color: #536471; font-size: 12.5px; }
 .tc-metrics span { display: inline-flex; align-items: center; gap: 5px; }
@@ -205,8 +218,18 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .footer a { color: var(--accent); }
 .footer p + p { margin-top: 0.5rem; }
 
+/* 三栏放不下时先退两栏：右栏并到左栏下方，预览跨两行保持完整高度 */
+@media (max-width: 1279px) {
+  .workspace {
+    grid-template-columns: 400px minmax(0, 1fr);
+    grid-template-areas: "left preview" "right preview";
+  }
+}
+
+/* 单列顺序刻意是 左栏→预览→右栏：先选内容、再看效果、最后调样式，
+   样式控件贴着预览下方，拉滑块时向上一眼就能看到结果 */
 @media (max-width: 980px) {
-  .workspace { grid-template-columns: 1fr; }
+  .workspace { grid-template-columns: 1fr; grid-template-areas: "left" "preview" "right"; }
   .preview-panel { position: static; }
   .stage-wrap { padding: 1rem 0.5rem; }
 }

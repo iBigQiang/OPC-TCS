@@ -93,7 +93,9 @@ localStorage keys：`tcs-profile` / `tcs-posts` / `tcs-xkey` / `tcs-xsync` / `tc
 2. `buildShareUrl()` —— 序列化（「复制链接」按钮和「交给 AI Agent」指令都用它）
 3. `llms.txt` —— 对外文档，Agent 读这个
 
-`buildShareUrl()` 只写非默认值以保持链接简短，默认值是**硬编码**在函数里的（`95` / `100` / `-20` / `-37`）。改 `state` 的初始值时这里要一起改，否则链接会漏参数。同理，`index.html` 里 `#card-scale` 滑块的 `value` 也必须跟着改 —— 这三处（`state.cardScale`、`buildShareUrl()` 判断、滑块 `value`）任一漏改都会导致滑块位置与实际渲染值不符。
+`buildShareUrl()` 只写非默认值以保持链接简短，默认值是**硬编码**在函数里的（`scale 95` / `opacity 100` / `fontsize 17` / `dim 0` / `x -20` / `y -37`）。改 `state` 的初始值时这里要一起改，否则链接会漏参数。同理，`index.html` 里对应滑块的 `value` 也必须跟着改 —— 这三处（`state.*`、`buildShareUrl()` 判断、滑块 `value`）任一漏改都会导致滑块位置与实际渲染值不符。`syncSliderInputs()` 负责在 URL 参数解析后把 state 回写到滑块，新增滑块要往里加一行。
+
+`llms.txt` 是 UTF-8 + CRLF，别让工具按 Windows 默认编码（GBK）写回——它是给 Agent 读的对外文档，编码一坏所有中文都是乱码。改动后用 `python -c "open('llms.txt','rb').read().decode('utf-8')"` 验一下。
 
 外部图片（`avatar` / `bg` 传 URL）先 fetch 转 dataURL 再用，避免 canvas 被跨域污染导致 `toDataURL()` 抛错。
 

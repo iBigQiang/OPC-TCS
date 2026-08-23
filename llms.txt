@@ -1,86 +1,88 @@
-# OPC ÍÆÎÄÇĞÆ¬¹¤³¡ Tweet Card Studio
+# OPC æ¨æ–‡åˆ‡ç‰‡å·¥åœº Tweet Card Studio
 
-> °ÑÒ»¶ÎÎÄ×ÖäÖÈ¾³ÉÍÆÌØ(X)·ç¸ñµÄ¿¨Æ¬Í¼Æ¬£¬µş¼Ó±³¾°£¬Êä³ö¿ÉÖ±½Ó·¢²¼µÄÊúÍ¼ PNG¡£
-> ±¾Ò³ÃæÖ§³Ö URL ²ÎÊıÇı¶¯£¬¿ÉÓÉ AI Agent Ö±½Óµ÷ÓÃ¡£
+> æŠŠä¸€æ®µæ–‡å­—æ¸²æŸ“æˆæ¨ç‰¹(X)é£æ ¼çš„å¡ç‰‡å›¾ç‰‡ï¼Œå åŠ èƒŒæ™¯ï¼Œè¾“å‡ºå¯ç›´æ¥å‘å¸ƒçš„ç«–å›¾ PNGã€‚
+> æœ¬é¡µé¢æ”¯æŒ URL å‚æ•°é©±åŠ¨ï¼Œå¯ç”± AI Agent ç›´æ¥è°ƒç”¨ã€‚
 
-## ÍÆÎÄ¿¨Æ¬Éú³ÉÆ÷ (Tweet Card Generator)
+## æ¨æ–‡å¡ç‰‡ç”Ÿæˆå™¨ (Tweet Card Generator)
 
-°ÑÒ»¶ÎÎÄ×ÖäÖÈ¾³ÉÍÆÌØ(X)·ç¸ñµÄ¿¨Æ¬Í¼Æ¬£¬µş¼Ó±³¾°£¬Êä³ö¿ÉÖ±½Ó·¢²¼µ½¶¶Òô/Ğ¡ºìÊéµÄÊúÍ¼ PNG¡£
-È«²¿ÔÚä¯ÀÀÆ÷±¾µØäÖÈ¾£¬ÎŞĞè API Key£¬ÎŞ·şÎñ¶Ëµ÷ÓÃ¡£
+æŠŠä¸€æ®µæ–‡å­—æ¸²æŸ“æˆæ¨ç‰¹(X)é£æ ¼çš„å¡ç‰‡å›¾ç‰‡ï¼Œå åŠ èƒŒæ™¯ï¼Œè¾“å‡ºå¯ç›´æ¥å‘å¸ƒåˆ°æŠ–éŸ³/å°çº¢ä¹¦çš„ç«–å›¾ PNGã€‚
+å…¨éƒ¨åœ¨æµè§ˆå™¨æœ¬åœ°æ¸²æŸ“ï¼Œæ— éœ€ API Keyï¼Œæ— æœåŠ¡ç«¯è°ƒç”¨ã€‚
 
-Ò³Ãæ: ±¾ÏîÄ¿ index.html£¨¹Ù·½²¿Êğ£ºhttps://tools.upthos.com/tweet-card£©
+é¡µé¢: æœ¬é¡¹ç›® index.htmlï¼ˆå®˜æ–¹éƒ¨ç½²ï¼šhttps://tools.upthos.com/tweet-cardï¼‰
 
-### Agent µ÷ÓÃ·½Ê½
+### Agent è°ƒç”¨æ–¹å¼
 
-ÓÃä¯ÀÀÆ÷ÄÜÁ¦£¨Playwright / Puppeteer / ä¯ÀÀÆ÷ MCP / computer-use ¾ù¿É£©Ö´ĞĞÈı²½£º
+ç”¨æµè§ˆå™¨èƒ½åŠ›ï¼ˆPlaywright / Puppeteer / æµè§ˆå™¨ MCP / computer-use å‡å¯ï¼‰æ‰§è¡Œä¸‰æ­¥ï¼š
 
-1. ´ò¿ª `<ÄãµÄ²¿ÊğµØÖ·>/tweet-card?embed=1&text=<ÎÄ×Ö>&bg=<±³¾°>&mode=<³ß´ç>`
-   £¨`embed=1` »áÒş²ØËùÓĞ½çÃæ£¬Ö»äÖÈ¾³ÉÆ·£©
-2. µÈ´ı `document.documentElement.dataset.ready === "1"`£¨Ê§°ÜÊ±Îª `"error"`£¬Ô­ÒòÔÚ `window.__cardError`£©
-3. ¶ÁÈ¡ `window.__cardDataUrl` ¡ª¡ª Ò»¸ö `data:image/png;base64,...` ×Ö·û´®£¬¼´³ÉÆ·Í¼£»
-   ³ß´çÔÚ `window.__cardSize`£¨`{width, height}`£©¡£°Ñ base64 ½âÂëĞ´ÈëÎÄ¼ş¼´¿É¡£
+1. æ‰“å¼€ `<ä½ çš„éƒ¨ç½²åœ°å€>/tweet-card?embed=1&text=<æ–‡å­—>&bg=<èƒŒæ™¯>&mode=<å°ºå¯¸>`
+   ï¼ˆ`embed=1` ä¼šéšè—æ‰€æœ‰ç•Œé¢ï¼Œåªæ¸²æŸ“æˆå“ï¼‰
+2. ç­‰å¾… `document.documentElement.dataset.ready === "1"`ï¼ˆå¤±è´¥æ—¶ä¸º `"error"`ï¼ŒåŸå› åœ¨ `window.__cardError`ï¼‰
+3. è¯»å– `window.__cardDataUrl` â€”â€” ä¸€ä¸ª `data:image/png;base64,...` å­—ç¬¦ä¸²ï¼Œå³æˆå“å›¾ï¼›
+   å°ºå¯¸åœ¨ `window.__cardSize`ï¼ˆ`{width, height}`ï¼‰ã€‚æŠŠ base64 è§£ç å†™å…¥æ–‡ä»¶å³å¯ã€‚
 
-Ò²¿ÉÒÔÖ±½Ó¶ÔÒ³Ãæ½ØÍ¼£¬`embed=1` ÏÂÒ³ÃæÄÚÈİÖ»ÓĞ³ÉÆ·Í¼±¾Éí¡£
+ä¹Ÿå¯ä»¥ç›´æ¥å¯¹é¡µé¢æˆªå›¾ï¼Œ`embed=1` ä¸‹é¡µé¢å†…å®¹åªæœ‰æˆå“å›¾æœ¬èº«ã€‚
 
-Ê¾Àı£¨Playwright / Node£©:
+ç¤ºä¾‹ï¼ˆPlaywright / Nodeï¼‰:
 
 ```js
-await page.goto('<ÄãµÄ²¿ÊğµØÖ·>/tweet-card?embed=1&text=' + encodeURIComponent('ÕâÊÇÒ»ÌõÍÆÎÄ') + '&bg=photo-forest-path&mode=tall');
+await page.goto('<ä½ çš„éƒ¨ç½²åœ°å€>/tweet-card?embed=1&text=' + encodeURIComponent('è¿™æ˜¯ä¸€æ¡æ¨æ–‡') + '&bg=photo-forest-path&mode=tall');
 await page.waitForFunction(() => document.documentElement.dataset.ready);
 const dataUrl = await page.evaluate(() => window.__cardDataUrl);
 require('fs').writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base64'));
 ```
 
-### URL ²ÎÊı
+### URL å‚æ•°
 
-ÄÚÈİ
-- `text` ¡ª ¿¨Æ¬ÕıÎÄ£¬±ØÌî¡£Ö§³Ö»»ĞĞ£¨`\n`£©£¬URL ±àÂë¡£Á´½Ó/@Ìá¼°/#»°Ìâ»á×Ô¶¯äÖÈ¾³ÉÀ¶É«
-- `date` ¡ª ¿¨Æ¬ÏÔÊ¾µÄÈÕÆÚ£¬¸ñÊ½ `2026-08-20`£¬Ä¬ÈÏ½ñÌì
+å†…å®¹
+- `text` â€” å¡ç‰‡æ­£æ–‡ï¼Œå¿…å¡«ã€‚æ”¯æŒæ¢è¡Œï¼ˆ`\n`ï¼‰ï¼ŒURL ç¼–ç ã€‚é“¾æ¥/@æåŠ/#è¯é¢˜ä¼šè‡ªåŠ¨æ¸²æŸ“æˆè“è‰²
+- `date` â€” å¡ç‰‡æ˜¾ç¤ºçš„æ—¥æœŸï¼Œæ ¼å¼ `2026-08-20`ï¼Œé»˜è®¤ä»Šå¤©
 
-Éí·İ
-- `name` ¡ª ÏÔÊ¾Ãû³Æ£¬Ä¬ÈÏ¡¸ÄãµÄÃû×Ö¡¹
-- `handle` ¡ª ÓÃ»§Ãû£¬²»´ø @£¬Ä¬ÈÏ `yourname`
-- `verified` ¡ª `0` ¹Ø±ÕÀ¶É«ÈÏÖ¤»ÕÕÂ£¬Ä¬ÈÏ¿ªÆô
-- `avatar` ¡ª Í·ÏñÍ¼Æ¬ URL£¨ĞèÔÊĞí¿çÓò·ÃÎÊ£¬È¡²»µ½Ê±»ØÍËÎªÄ¬ÈÏÍ·Ïñ£©
+èº«ä»½
+- `name` â€” æ˜¾ç¤ºåç§°ï¼Œé»˜è®¤ã€Œä½ çš„åå­—ã€
+- `handle` â€” ç”¨æˆ·åï¼Œä¸å¸¦ @ï¼Œé»˜è®¤ `yourname`
+- `verified` â€” `0` å…³é—­è“è‰²è®¤è¯å¾½ç« ï¼Œé»˜è®¤å¼€å¯
+- `avatar` â€” å¤´åƒå›¾ç‰‡ URLï¼ˆéœ€å…è®¸è·¨åŸŸè®¿é—®ï¼Œå–ä¸åˆ°æ—¶å›é€€ä¸ºé»˜è®¤å¤´åƒï¼‰
 
-³ß´çÓëÑùÊ½
-- `mode` ¡ª `poster`(3:4, 1080¡Á1440, Ä¬ÈÏ) | `tall`(9:16, 1080¡Á1920) | `card`(´¿¿¨Æ¬£¬Í¸Ã÷±³¾° PNG)
-- `theme` ¡ª `light`(Ä¬ÈÏ) | `dark`
-- `scale` ¡ª ¿¨Æ¬ÕûÌå´óĞ¡£¬50¨C140£¬Ä¬ÈÏ 95
-- `opacity` ¡ª ¿¨Æ¬²»Í¸Ã÷¶È£¬30¨C100£¬Ä¬ÈÏ 100
-- `x` / `y` ¡ª ¿¨Æ¬Ïà¶Ô»­ÃæÖĞĞÄµÄÆ«ÒÆÏñËØ£¬¿ÉÎª¸º
+å°ºå¯¸ä¸æ ·å¼
+- `mode` â€” `poster`(3:4, 1080Ã—1440, é»˜è®¤) | `tall`(9:16, 1080Ã—1920) | `card`(çº¯å¡ç‰‡ï¼Œé€æ˜èƒŒæ™¯ PNG)
+- `theme` â€” `light`(é»˜è®¤) | `dark`
+- `scale` â€” å¡ç‰‡æ•´ä½“å¤§å°ï¼Œ50â€“140ï¼Œé»˜è®¤ 95
+- `opacity` â€” å¡ç‰‡ä¸é€æ˜åº¦ï¼Œ30â€“100ï¼Œé»˜è®¤ 100
+- `fontsize` â€” æ­£æ–‡åŸºå‡†å­—å·ï¼ˆpxï¼‰ï¼Œ14â€“24ï¼Œé»˜è®¤ 17ã€‚è¶…é•¿æ–‡æœ¬ä»ä¼šåœ¨æ­¤åŸºç¡€ä¸Šè‡ªåŠ¨é™æ¡£ï¼Œä¸ä¼šæº¢å‡ºç”»æ¡†
+- `dim` â€” èƒŒæ™¯å‹æš—ï¼Œ0â€“55ï¼Œé»˜è®¤ 0ã€‚çº¯å¡ç‰‡æ¨¡å¼ï¼ˆ`mode=card`ï¼‰æ— èƒŒæ™¯ï¼Œæ­¤å‚æ•°ä¸ç”Ÿæ•ˆ
+- `x` / `y` â€” å¡ç‰‡ç›¸å¯¹ç”»é¢ä¸­å¿ƒçš„åç§»åƒç´ ï¼Œå¯ä¸ºè´Ÿ
 
-±³¾°
-- `bg` ¡ª ÄÚÖÃ±³¾°µÄ slug£¬»òÈÎÒâÍ¼Æ¬ URL£¨ĞèÔÊĞí¿çÓò·ÃÎÊ£©
+èƒŒæ™¯
+- `bg` â€” å†…ç½®èƒŒæ™¯çš„ slugï¼Œæˆ–ä»»æ„å›¾ç‰‡ URLï¼ˆéœ€å…è®¸è·¨åŸŸè®¿é—®ï¼‰
 
-  ÄÚÖÃÕÕÆ¬: `photo-misty-marsh` `photo-forest-coast` `photo-pebble-beach` `photo-rocky-bay`
+  å†…ç½®ç…§ç‰‡: `photo-misty-marsh` `photo-forest-coast` `photo-pebble-beach` `photo-rocky-bay`
   `photo-snow-peaks` `photo-dusk-forest` `photo-flower-dusk` `photo-golden-field`
   `photo-desert-dusk` `photo-forest-path` `photo-lighthouse` `photo-white-town`
   `photo-canal-town` `photo-city-bridge-night` `photo-london-night` `photo-foggy-street`
   `photo-far-city-lights` `photo-city-rooftops` `photo-city-crosswalk` `photo-old-town-door`
   `photo-concrete-block` `photo-vintage-cars` `photo-cafe-silhouette`
 
-  ÄÚÖÃ½¥±ä: `ink-dawn` `deep-forest` `ember` `harbor` `violet-night`
+  å†…ç½®æ¸å˜: `ink-dawn` `deep-forest` `ember` `harbor` `violet-night`
   `slate` `plum-smoke` `midnight` `paper-warm` `mist`
 
-»¥¶¯Êı¾İ£¨¿¨Æ¬µ×²¿µÄ»Ø¸´/×ª·¢/µãÔŞ/ÊÕ²Ø/ä¯ÀÀÊı×Ö£¬Ä¬ÈÏËæ»úÉú³É£©
-- `metrics=off` ¡ª ÍêÈ«Òş²ØÕâÒ»ĞĞ
-- `likes` / `reposts` / `replies` / `bookmarks` / `views` ¡ª Ö¸¶¨¾ßÌåÊı×Ö
+äº’åŠ¨æ•°æ®ï¼ˆå¡ç‰‡åº•éƒ¨çš„å›å¤/è½¬å‘/ç‚¹èµ/æ”¶è—/æµè§ˆæ•°å­—ï¼Œé»˜è®¤éšæœºç”Ÿæˆï¼‰
+- `metrics=off` â€” å®Œå…¨éšè—è¿™ä¸€è¡Œ
+- `likes` / `reposts` / `replies` / `bookmarks` / `views` â€” æŒ‡å®šå…·ä½“æ•°å­—
 
-ÆäËû
-- `embed` ¡ª `1` ½øÈëÎŞ½çÃæäÖÈ¾Ä£Ê½£¨Agent ÓÃÕâ¸ö£©
-- `guides` ¡ª `0` ¹Ø±Õ¶¶Òô°²È«Çø²Î¿¼Ïß£¨²Î¿¼Ïß±¾À´¾Í²»»á½ø³ÉÆ·£¬½öÓ°ÏìÔ¤ÀÀ£©
+å…¶ä»–
+- `embed` â€” `1` è¿›å…¥æ— ç•Œé¢æ¸²æŸ“æ¨¡å¼ï¼ˆAgent ç”¨è¿™ä¸ªï¼‰
+- `guides` â€” `0` å…³é—­æŠ–éŸ³å®‰å…¨åŒºå‚è€ƒçº¿ï¼ˆå‚è€ƒçº¿æœ¬æ¥å°±ä¸ä¼šè¿›æˆå“ï¼Œä»…å½±å“é¢„è§ˆï¼‰
 
-### ÍêÕûÊ¾Àı
+### å®Œæ•´ç¤ºä¾‹
 
-ÉîÉ«¿¨Æ¬ + ³ÇÊĞÒ¹¾° + 9:16 + Ö¸¶¨Êı¾İ:
+æ·±è‰²å¡ç‰‡ + åŸå¸‚å¤œæ™¯ + 9:16 + æŒ‡å®šæ•°æ®:
 
 ```
-<ÄãµÄ²¿ÊğµØÖ·>/tweet-card?embed=1&text=%E8%AF%B4%E4%B8%AA%E6%9A%B4%E8%AE%BA&name=Ray%20Wang&handle=wangray&mode=tall&theme=dark&bg=photo-london-night&likes=5309&views=160000
+<ä½ çš„éƒ¨ç½²åœ°å€>/tweet-card?embed=1&text=%E8%AF%B4%E4%B8%AA%E6%9A%B4%E8%AE%BA&name=Ray%20Wang&handle=wangray&mode=tall&theme=dark&bg=photo-london-night&likes=5309&views=160000
 ```
 
-### ËµÃ÷
+### è¯´æ˜
 
-- ¿¨Æ¬ÉÏµÄ»¥¶¯Êı¾İÄ¬ÈÏÊÇËæ»úÉú³ÉµÄ£¬²»´ú±íÕæÊµÊı¾İ
-- Éú³ÉµÄÍ¼Æ¬°üº¬ÍÆÌØ·ç¸ñ½çÃæ£¬Çë×ÔĞĞÈ·ÈÏÊ¹ÓÃ³¡¾°ºÏ¹æ
-- ¿ªÔ´´úÂë: https://github.com/imraywang/tweet-card
+- å¡ç‰‡ä¸Šçš„äº’åŠ¨æ•°æ®é»˜è®¤æ˜¯éšæœºç”Ÿæˆçš„ï¼Œä¸ä»£è¡¨çœŸå®æ•°æ®
+- ç”Ÿæˆçš„å›¾ç‰‡åŒ…å«æ¨ç‰¹é£æ ¼ç•Œé¢ï¼Œè¯·è‡ªè¡Œç¡®è®¤ä½¿ç”¨åœºæ™¯åˆè§„
+- å¼€æºä»£ç : https://github.com/imraywang/tweet-card

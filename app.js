@@ -25,6 +25,8 @@ const state = {
   cardX: -20,            // 拖动偏移（px，相对画框中心）
   cardY: -37,
   cardOpacity: 100,
+  bodySize: 17,          // 正文基准字号（px），size-xs/s/m 四档在此基础上按倍率缩
+  bgDim: 0,              // 背景压暗（%），0 = 不压暗；card 模式无背景故不生效
   guidesOn: true,        // 抖音安全区参考线（仅预览，不进导出）
   search: "",
   chip: { kind: "all", v: "" },
@@ -275,6 +277,9 @@ function renderCard() {
   const body = $("tc-body");
   body.innerHTML = renderBody(text);
   body.className = "tc-body " + (text.length > 500 ? "size-xs" : text.length > 320 ? "size-s" : text.length > 170 ? "size-m" : "");
+  // 走 CSS 变量而非加 class——上一行是 className 整体赋值，任何 class 形式的字号覆盖都会被下次渲染抹掉
+  body.style.setProperty("--tc-body-size", state.bodySize + "px");
+  $("bodysize-val").textContent = state.bodySize + "px";
 
   $("tc-date").textContent = fmtDate(date);
 
@@ -287,6 +292,10 @@ function renderCard() {
   card.style.backgroundColor = state.theme === "dark"
     ? `rgba(0, 0, 0, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
   $("opacity-val").textContent = state.cardOpacity + "%";
+
+  // 背景压暗（预览侧）：与导出侧 composePoster()/exportLive() 的 fillRect 用同一个 alpha
+  $("stage-dim").style.opacity = state.bgDim / 100;
+  $("dim-val").textContent = state.bgDim + "%";
 
   const metricsEl = $("tc-metrics");
   const m = state.fakeMetrics;
@@ -318,9 +327,9 @@ function renderCard() {
   $("safe-guides").classList.toggle("hidden", !isFrame || !state.guidesOn);
   $("guides-toggle").style.display = isFrame ? "" : "none";
   $("live-btn").style.display = isFrame ? "" : "none";
+  $("dim-option").style.display = isFrame ? "" : "none"; // 纯卡片没背景可压
 
-  const promptBox = $("agent-prompt");
-  if (promptBox) promptBox.value = buildAgentPrompt();
+  refreshAgentPrompt();
 
   // 竖图模式：卡片浮动（整体缩放 + 可拖动）；长文先自动缩到画框内，再叠加用户缩放
   card.classList.toggle("floating", isFrame);
@@ -490,6 +499,7 @@ async function composePoster() {
     cv.width = W; cv.height = H;
     const ctx = cv.getContext("2d");
     drawCover(ctx, bg, W, H, 1);
+    drawDim(ctx, W, H);
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.35)";
     ctx.shadowBlur = 40;
@@ -683,6 +693,16 @@ function drawCover(ctx, img, W, H, zoom) {
   ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
 }
 
+/* 背景压暗：必须在 ctx.save() 设阴影之前调用，否则这层黑幕自己也会投影。
+   alpha 与预览侧 #stage-dim 的 opacity 取同一个值，两边是同一套 source-over 混合。 */
+function drawDim(ctx, W, H) {
+  if (!state.bgDim) return;
+  ctx.save();
+  ctx.fillStyle = `rgba(0,0,0,${state.bgDim / 100})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
 async function exportLive() {
   if (state.mode === "card") return;
   if (!("VideoEncoder" in window)) {
@@ -728,6 +748,7 @@ async function exportLive() {
     for (let f = 0; f < TOTAL; f++) {
       const t = f / (TOTAL - 1);
       drawCover(ctx, bg, W, H, 1 + 0.07 * t); // 只动背景：缓慢推近
+      drawDim(ctx, W, H);
       ctx.save();
       ctx.shadowColor = "rgba(0,0,0,0.35)";
       ctx.shadowBlur = 40;
@@ -801,8 +822,16 @@ function bind() {
   $("month-filter").onchange = (e) => { state.month = e.target.value; applyFilter(); };
   $("random-btn").onclick = randomPost;
   $("custom-text").oninput = (e) => { state.customText = e.target.value; renderCard(); };
-  $("card-scale").oninput = (e) => { state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; applyCardTransform(); };
+  $("card-scale").oninput = (e) => { state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; applyCardTransform(); refreshAgentPrompt(); };
   $("card-opacity").oninput = (e) => { state.cardOpacity = Number(e.target.value); renderCard(); };
+  // 字号会改变卡片高度，必须走全量渲染让 fitScale 重算；压暗只改一层 opacity，走轻量路径
+  $("body-size").oninput = (e) => { state.bodySize = Number(e.target.value); renderCard(); };
+  $("bg-dim").oninput = (e) => {
+    state.bgDim = Number(e.target.value);
+    $("stage-dim").style.opacity = state.bgDim / 100;
+    $("dim-val").textContent = state.bgDim + "%";
+    refreshAgentPrompt();
+  };
 
   $("bg-upload").onchange = (e) => {
     const file = e.target.files[0];
@@ -939,6 +968,15 @@ const clampNum = (v, lo, hi, dflt) => {
   return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt;
 };
 
+/* 把 state 回写到滑块。URL 参数进来时只改了 state，拇指还停在 HTML 里的初始 value，
+   会出现"标签写 120%、卡片也是 120%，拇指却在 95"的错位。 */
+function syncSliderInputs() {
+  $("card-scale").value = state.cardScale;
+  $("card-opacity").value = state.cardOpacity;
+  $("body-size").value = state.bodySize;
+  $("bg-dim").value = state.bgDim;
+}
+
 function blobToDataUrl(blob) {
   return new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
 }
@@ -980,6 +1018,8 @@ async function applyUrlParams() {
   if (q.get("theme") === "dark") state.theme = "dark";
   if (q.has("scale")) state.cardScale = clampNum(q.get("scale"), 50, 140, state.cardScale);
   if (q.has("opacity")) state.cardOpacity = clampNum(q.get("opacity"), 30, 100, state.cardOpacity);
+  if (q.has("fontsize")) state.bodySize = clampNum(q.get("fontsize"), 14, 24, state.bodySize);
+  if (q.has("dim")) state.bgDim = clampNum(q.get("dim"), 0, 55, state.bgDim);
   if (q.has("x")) state.cardX = clampNum(q.get("x"), -400, 400, 0);
   if (q.has("y")) state.cardY = clampNum(q.get("y"), -600, 600, 0);
   if (q.get("guides") === "0") state.guidesOn = false;
@@ -1023,6 +1063,12 @@ async function runEmbed() {
   }
 }
 
+/* 指令框里嵌着分享链接，任何改动 URL 参数的交互都要刷新它——包括不走 renderCard() 的轻量路径 */
+function refreshAgentPrompt() {
+  const box = $("agent-prompt");
+  if (box) box.value = buildAgentPrompt();
+}
+
 /* 生成一段可以整个发给 AI Agent 的指令 */
 function buildAgentPrompt() {
   return [
@@ -1053,6 +1099,8 @@ function buildShareUrl(embed) {
   // 与初始默认值一致的项不写进链接，保持简短（省略时页面会用同样的默认值）
   if (state.cardScale !== 95) q.set("scale", state.cardScale);
   if (state.cardOpacity !== 100) q.set("opacity", state.cardOpacity);
+  if (state.bodySize !== 17) q.set("fontsize", state.bodySize);
+  if (state.bgDim !== 0) q.set("dim", state.bgDim);
   if (Math.round(state.cardX) !== -20) q.set("x", Math.round(state.cardX));
   if (Math.round(state.cardY) !== -37) q.set("y", Math.round(state.cardY));
   if (!state.metricsOn) q.set("metrics", "off");
@@ -1075,6 +1123,7 @@ async function init() {
 
   refreshLibrary();
   bind();
+  syncSliderInputs();
   initDrag();
   renderBackgroundGrid();
   fitStageScale();
