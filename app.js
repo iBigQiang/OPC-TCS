@@ -15,7 +15,8 @@ const state = {
   filtered: [],
   selected: null,        // 当前上卡的推文对象
   customText: "",
-  tab: "custom",        // library | custom
+  customSeed: "",        // 上次带入编辑框的推文原文，用来判断用户改没改过
+  tab: "library",        // library | fetch | custom
   mode: "poster",        // poster | card
   theme: "light",        // light | dark
   metricsOn: true,
@@ -242,6 +243,17 @@ function selectPost(p) {
   renderCard();
 }
 
+/* 从推文库切到自由编辑时，把选中的那条带进编辑框，省得重敲或再复制一次。
+   只在「编辑框为空」或「内容仍等于上次带入的原文」时覆盖——用户改过的东西不能冲掉。
+   改过之后想换一条，用「用推文库选中的那条替换」按钮走 force。 */
+function primeCustomText(force) {
+  if (!state.selected) return;
+  if (!force && state.customText.trim() && state.customText !== state.customSeed) return;
+  state.customText = state.selected.text;
+  state.customSeed = state.selected.text;
+  $("custom-text").value = state.customText;
+}
+
 function randomPost() {
   if (!state.filtered.length) return;
   const p = state.filtered[Math.floor(Math.random() * state.filtered.length)];
@@ -260,6 +272,15 @@ const METRIC_ICONS = {
   views: '<svg viewBox="0 0 24 24"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg>',
 };
 
+/* 当前上卡的文案与日期。「在线抓取」tab 还没有自己的内容源，
+   所以判断按「有没有选中的推文」而不是按 tab 名——否则从自由编辑切过去卡片会变空。 */
+function fromLibrary() {
+  return state.tab !== "custom" && !!state.selected;
+}
+function currentText() {
+  return fromLibrary() ? state.selected.text : state.customText;
+}
+
 /* 正文渲染：链接 / @提及 / #话题 显示为 X 蓝，与真实推文一致 */
 function renderBody(text) {
   const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -270,9 +291,8 @@ function renderBody(text) {
 }
 
 function renderCard() {
-  const isCustom = state.tab === "custom";
-  const text = isCustom ? (state.customText || "写点什么……") : (state.selected ? state.selected.text : "");
-  const date = state.dateOverride || (isCustom ? todayISO() : (state.selected ? state.selected.date : todayISO()));
+  const text = currentText() || "写点什么……";
+  const date = state.dateOverride || (fromLibrary() ? state.selected.date : todayISO());
 
   const body = $("tc-body");
   body.innerHTML = renderBody(text);
@@ -308,7 +328,7 @@ function renderCard() {
   }
 
   const link = $("source-link");
-  if (!isCustom && state.selected && state.selected.sourceUrl) {
+  if (fromLibrary() && state.selected.sourceUrl) {
     link.style.display = "";
     link.href = state.selected.sourceUrl;
   } else {
@@ -526,8 +546,8 @@ async function exportPng() {
       const cv = await composePoster();
       blob = await new Promise((res) => cv.toBlob(res, "image/png"));
     }
-    const tag = state.tab === "custom" ? "custom" : (state.selected ? state.selected.id : "empty");
-    const name = `${state.profile.handle}-card-${(state.selected && state.tab !== "custom" ? state.selected.date : todayISO()).replaceAll("-", "")}-${tag}.png`;
+    const tag = fromLibrary() ? state.selected.id : "custom";
+    const name = `${state.profile.handle}-card-${(fromLibrary() ? state.selected.date : todayISO()).replaceAll("-", "")}-${tag}.png`;
     deliverFile(blob, name, "点「保存 / 分享」存到相册，或长按图片保存");
   } catch (err) {
     alert("导出失败：" + err.message + "\n如果用了网络图片背景，可能是跨域限制，请下载后用「上传图片」。");
@@ -768,7 +788,7 @@ async function exportLive() {
     muxer.finalize();
 
     const blob = new Blob([muxer.target.buffer], { type: "video/mp4" });
-    const tag = state.tab === "custom" ? "custom" : (state.selected ? state.selected.id : "empty");
+    const tag = fromLibrary() ? state.selected.id : "custom";
     const name = `${state.profile.handle}-live-${todayISO().replaceAll("-", "")}-${tag}.mp4`;
     deliverFile(blob, name, "保存到相册后，用 intoLive / 快捷指令转成实况照片再发布");
 
@@ -798,12 +818,16 @@ function bindSegmented(pairs, onChange) {
 }
 
 function bind() {
-  bindSegmented([[$("tab-library"), "library"], [$("tab-custom"), "custom"]], (v) => {
+  bindSegmented([[$("tab-library"), "library"], [$("tab-fetch"), "fetch"], [$("tab-custom"), "custom"]], (v) => {
+    if (v === "custom") primeCustomText(false);
     state.tab = v;
     $("library-section").classList.toggle("hidden", v !== "library");
+    $("fetch-section").classList.toggle("hidden", v !== "fetch");
     $("custom-section").classList.toggle("hidden", v !== "custom");
     renderCard();
   });
+
+  $("custom-reseed").onclick = () => { primeCustomText(true); renderCard(); };
 
   bindSegmented([[$("mode-poster"), "poster"], [$("mode-tall"), "tall"], [$("mode-card"), "card"]], (v) => { state.mode = v; renderCard(); });
   bindSegmented([[$("theme-light"), "light"], [$("theme-dark"), "dark"]], (v) => { state.theme = v; renderCard(); });
@@ -856,7 +880,7 @@ function bind() {
   };
 
   $("copy-text").onclick = async () => {
-    const text = state.tab === "custom" ? state.customText : (state.selected ? state.selected.text : "");
+    const text = currentText();
     await navigator.clipboard.writeText(text);
     $("copy-text").textContent = "已复制 ✓";
     setTimeout(() => ($("copy-text").textContent = "复制文案"), 1200);
@@ -1089,7 +1113,7 @@ function buildAgentPrompt() {
 
 function buildShareUrl(embed) {
   const q = new URLSearchParams();
-  const text = state.tab === "custom" ? state.customText : (state.selected ? state.selected.text : "");
+  const text = currentText();
   if (text) q.set("text", text);
   if (state.profile.name !== DEFAULT_PROFILE.name) q.set("name", state.profile.name);
   if (state.profile.handle !== DEFAULT_PROFILE.handle) q.set("handle", state.profile.handle);
@@ -1129,7 +1153,7 @@ async function init() {
   fitStageScale();
   window.addEventListener("resize", fitStageScale);
   if (state.tab === "custom") { $("custom-text").value = state.customText; $("tab-custom").click(); }
-  else if (state.posts.length) selectPost(state.posts[0]);
+  else if (state.filtered.length || state.posts.length) selectPost(state.filtered[0] || state.posts[0]);
 
   if (embed) runEmbed();
 }

@@ -1,75 +1,64 @@
-# 当前迭代：三栏布局改造 + 背景压暗 / 正文字号滑块 —— 已完成
+# 当前迭代：「选择内容」三 Tab + 首屏默认上卡 —— 已完成
 
-**方案文档**：[2026-08-23-三栏布局与新增滑块方案](../docs/开发及迭代方案调研报告/2026-08-23-三栏布局与新增滑块方案.md)
+**方案文档**：[2026-08-23-选择内容三Tab与首屏默认上卡方案](../docs/开发及迭代方案调研报告/2026-08-23-选择内容三Tab与首屏默认上卡方案.md)
 **开发日志**：[DEVLOG](../docs/DEVLOG.md)
 
 ## 检查项
 
-### 前置
-- [x] llms.txt 从 GBK 转回 UTF-8
+### A. 三个 Tab
+- [x] 按钮改成 推文库 / 在线抓取 / 自由编辑，`active` 挪到 `tab-library`
+- [x] 副标题改「从推文库选一条，或自己写」
+- [x] `#library-section` 去 `hidden`；`#custom-section` 加 `hidden`
+- [x] 新建 `#fetch-section` 占位（控件 disabled + 说明文字）
+- [x] 「写文案」→「编辑文案」
 
-### A. 三栏布局
-- [x] `.workspace` max-width 1200 → 1480，列改 `400px minmax(0,1fr) 400px`，加 `grid-template-areas`
-- [x] 三个面板各自 `grid-area`
-- [x] 新增 `@media (max-width:1279px)` 两栏退化
-- [x] 现有 `@media (max-width:980px)` 补 areas，单列顺序 左→预览→右
+### B. 首屏上卡
+- [x] `state.tab` 默认 `"custom"` → `"library"`
+- [x] init 取值改 `state.filtered[0] || state.posts[0]`
 
-### B. 迁移分组
-- [x] index.html 新建 `<aside class="control-panel control-panel-right">`
-- [x] 「03 样式」「04 背景」整块剪切过去
-- [x] 左右栏分组编号重排（左 01-05，右 01-02）
+### C. 智能带入
+- [x] `state.customSeed` 记录上次带入的原文
+- [x] `primeCustomText(force)`
+- [x] Tab 绑定加第三项，切 custom 时调用
+- [x] 「用推文库选中的那条替换」按钮（force 出口）
 
-### C. 新滑块
-- [x] `#bg-dim`（0–55，默认 0）+ `#body-size`（14–24，默认 17）HTML
-- [x] `state.bgDim` / `state.bodySize`
-- [x] `bind()` 两个 `oninput`
-- [x] `renderCard()` 消费两值（字号走 CSS 变量 inline style）
-- [x] styles.css `.tc-body` 四档改 `calc(var(--tc-body-size))`
-- [x] styles.css 新增 `.stage-dim` + `.stage.card-only .stage-dim`
-- [x] index.html `#stage-bg` 后加 `#stage-dim`
-- [x] `composePoster()` 插 `drawDim()`
-- [x] `exportLive()` 逐帧插 `drawDim()`
-- [x] card 模式隐藏「背景压暗」滑块
+### D. 实施中发现的缺陷
+- [x] 抽 `fromLibrary()` / `currentText()`，修「带 ?text= 切到在线抓取卡片变空」
+- [x] `renderCard()` / `buildShareUrl()` / 复制文案 / 两处导出 tag 统一走新函数
+- [x] 清掉残留的 `isCustom` 引用（`source-link` 那处）
 
-### D. 参数同步
-- [x] `applyUrlParams()` 解析 `dim` / `fontsize`
-- [x] `buildShareUrl()` 序列化（非默认值才写）
-- [x] `llms.txt` 补两行
-- [x] `README.md` 参数清单
-- [x] `CLAUDE.md` 硬编码默认值清单 + llms.txt 编码约定
-
-### E. 附带修复
-- [x] `syncSliderInputs()` — 四个滑块 value 与 state 对齐
-- [x] `refreshAgentPrompt()` — 轻量路径也刷新 Agent 指令
-- [x] 四个滑块补 `<label for>`
+### E. 样式
+- [x] `.text-input:disabled` / `.chip:disabled` 禁用态
 
 ### F. 验证
-- [x] 布局五视口实测（1920/1440/1279/1100/900）
-- [x] 默认态零回归（字号 17px、dim opacity 0）
-- [x] 压暗预览 vs 导出像素一致性（误差 0）
-- [x] 正文字号 × 长文分档（560 字 → 16.32px）
-- [x] URL 往返三者一致
+- [x] 首屏（tab / 高亮 / 正文 / 卡片高 367）
+- [x] 三 Tab 互斥，任意顺序切换卡片不变空
+- [x] 带入四分支（带入 / 覆盖 / 保留改动 / 强制替换）
+- [x] `?text=` 不被推文库覆盖
+- [x] 在线抓取占位控件禁用
 - [x] 三条导出管线 embed 回归
-- [x] card 模式无黑幕
-- [x] Impeccable 检测器扫描（两条命中均非本轮引入）
+- [x] embed 不带 text 也能出图
+- [x] 控制台 0 error
 - [x] 更新 DEVLOG
+
+### G. 仓库卫生
+- [x] `.gitignore` 加 `docs/feedgrab-x/`（含 token 与 X 登录态，不可提交）
 
 ## 复盘
 
 ### 顺利的部分
 
-方案阶段把「三处同步」「两条导出管线」「className 整体赋值会抹掉 class」这些坑提前挖出来了，实施时没有返工。压暗做到预览与导出**误差 0**，靠的是一开始就选了叠黑层而不是 `filter: brightness()`——两者数学不等价，选错了后期很难对齐。
+方案阶段先摸链路，发现 `init()` 里早就有「非 custom tab 自动选第一条」的分支，只是默认值挡着从未走到——首屏上卡这个需求实际只改了一个默认值加一个取值，没写新逻辑。
 
 ### 踩到的坑
 
-1. **浏览器缓存导致误判**。改完 CSS 后实测仍是旧的两栏值，一度怀疑代码没生效。`curl` 确认服务端已是新内容后才定位到是浏览器缓存，用 CDP `Network.clearBrowserCache` + `setCacheDisabled` 解决。以后改完静态资源验证前先禁缓存。
+**加第三个枚举值时，要把所有二分判断都找出来。** `state.tab` 原本只有 `library`/`custom` 两个值，全项目有 5 处 `state.tab === "custom" ? A : B` 的三元判断。加了 `fetch` 后这些判断的 else 分支语义就变了——只认 `state.selected`，而带 `?text=` 进来时它是 null，导致卡片变空。
 
-2. **算宽度漏了滚动条**。规划说 1440 视口下中列 552px、zoom 0.978，实测是 537px、0.946。视口宽 ≠ 可用宽，还要扣约 15px 滚动条。
+教训：枚举从 2 值扩到 3 值时，`grep` 出所有基于它的分支逐个过一遍，别假设「新值天然落到 else 分支就对了」。这次顺手抽成 `fromLibrary()` / `currentText()` 两个函数，以后再加 tab 只改一处。
 
-3. **超长 URL 污染上下文**。用 `location.href = '?text=' + encodeURIComponent(560字)` 做测试，Playwright 把完整 URL 回显了三次。以后长文本测试改用 `state` 直接赋值或短参数。
+还有一个连带遗漏：删掉 `const isCustom` 时只看了它在函数前几行的用法，没 grep 整个函数体，漏了 60 行外 `source-link` 那处，浏览器直接报 `ReferenceError`。**删变量前先 grep 全文件。**
 
 ### 遗留
 
-- 1440 视口 stage 缩到 94.6%（可接受；若要 1:1 把侧栏收到 380px）
-- 单列下背景缩略图网格 `repeat(5,1fr)` 铺满时偏大
-- 首屏「推文库」tab 下卡片正文空白
+- 单列（<980）下背景缩略图网格 `repeat(5,1fr)` 铺满时偏大
+- 「在线抓取」功能待实现（`docs/feedgrab-x/` 是相关的本地服务参考）

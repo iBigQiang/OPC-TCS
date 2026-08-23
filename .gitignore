@@ -6,3 +6,8 @@ Thumbs.db
 
 # Playwright MCP 的截图/快照产物
 .playwright-mcp/
+
+# feedgrab-x 抓取服务（本地参考用）：含 IMPORT_SERVICE_TOKEN / X_IMPORTER_TOKEN
+# 与 sessions/ 里的 X 登录态，推上公开仓库等于泄露凭证。
+# 如果确实要把这个服务纳入版本库，先把 .env 与 sessions/ 单独排除掉再放开这一行。
+docs/feedgrab-x/

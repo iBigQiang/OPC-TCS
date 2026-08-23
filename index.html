@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>推文卡片生成器 | 推文一键做成抖音小红书图片卡片 — OPC Tweet Card Studio</title>
+<title>推文卡片生成器（OPC Tweet Card Studio）| 推文一键做成抖音小红书图片卡片</title>
 <meta name="description" content="把推文（X/Twitter）做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，纯本地运行，数据不上传。" />
 <meta name="keywords" content="推文卡片,推特截图生成器,tweet卡片,抖音图文,小红书图片,推文转图片,twitter card generator,X截图,Live图,实况照片" />
 <meta name="robots" content="index,follow,max-image-preview:large" />
@@ -11,18 +11,18 @@
      不要指向上游站点，否则等于告诉搜索引擎「正版在别处」 -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="OPC Tweet Card Studio" />
-<meta property="og:title" content="推文卡片生成器 | 推文一键做成抖音小红书图片卡片" />
+<meta property="og:title" content="推文卡片生成器（OPC Tweet Card Studio） | 推文一键做成抖音小红书图片卡片" />
 <meta property="og:description" content="写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，纯本地运行，数据不上传。" />
 <meta property="og:locale" content="zh_CN" />
 <!-- 分享大图：建议自备 1200×630 的 og.png 替换掉这里的头像 -->
 <meta property="og:image" content="avatar.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="推文卡片生成器 | 推文一键做成抖音小红书图片卡片" />
+<meta name="twitter:title" content="推文卡片生成器（OPC Tweet Card Studio） | 推文一键做成抖音小红书图片卡片" />
 <meta name="twitter:description" content="写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。纯本地运行，数据不上传。" />
 <meta name="twitter:image" content="avatar.jpg" />
 <link rel="icon" href="avatar.jpg" />
 <link rel="stylesheet" href="styles.css" />
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"推文卡片生成器","applicationCategory":"DesignApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"把推文做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明背景 PNG。所有处理在浏览器本地完成。","inLanguage":"zh-CN"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"推文卡片生成器（OPC Tweet Card Studio）","applicationCategory":"DesignApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"把推文做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明背景 PNG。所有处理在浏览器本地完成。","inLanguage":"zh-CN"}</script>
 </head>
 <body>
 <main class="app-shell">
@@ -32,7 +32,7 @@
   </nav>
 
   <div class="hero">
-    <h1>推文卡片生成器</h1>
+    <h1>推文卡片生成器（OPC Tweet Card Studio）</h1>
     <p>把推文做成可直接发布的图片卡片：写文案或导入你的推文库 → 选背景 → 导出 3:4 / 9:16 竖图、透明 PNG，或 3 秒动效 Live 图素材（MP4）。全部在浏览器本地完成，数据不上传。</p>
     <p class="hero-agent">🤖 也可以让 AI Agent 直接调用：调好样式后到左下角「<a href="#agent-prompt">交给 AI Agent</a>」复制一段指令，发给 Claude Code / Codex 即可批量出图（<a href="llms.txt" target="_blank" rel="noopener">参数文档</a>）。</p>
   </div>
@@ -41,14 +41,15 @@
     <aside class="control-panel">
 
       <section class="control-section">
-        <div class="section-heading"><span>01</span><div><h2>选择内容</h2><p>直接写文案，或从推文库里选</p></div></div>
+        <div class="section-heading"><span>01</span><div><h2>选择内容</h2><p>从推文库选一条，或自己写</p></div></div>
         <div class="segmented" role="tablist">
-          <button id="tab-custom" class="active">自定义文案</button>
-          <button id="tab-library">推文库</button>
+          <button id="tab-library" class="active">推文库</button>
+          <button id="tab-fetch">在线抓取</button>
+          <button id="tab-custom">自由编辑</button>
         </div>
       </section>
 
-      <section class="control-section hidden" id="library-section">
+      <section class="control-section" id="library-section">
         <div class="section-heading"><span>02</span><div><h2>推文库 <em id="lib-count"></em></h2><p>搜关键词，点一条直接上卡</p></div></div>
         <div class="search-row">
           <input id="search" type="search" placeholder="搜索：AI、流量、开源…" />
@@ -65,9 +66,23 @@
         <ul class="post-list" id="post-list"></ul>
       </section>
 
-      <section class="control-section" id="custom-section">
-        <div class="section-heading"><span>02</span><div><h2>写文案</h2><p>支持换行，会实时上卡</p></div></div>
+      <section class="control-section hidden" id="fetch-section">
+        <div class="section-heading"><span>02</span><div><h2>在线抓取</h2><p>贴一条推文链接，直接抓成卡片</p></div></div>
+        <!-- 功能未上线，控件保持 disabled 而非隐藏，让人一眼看懂将来长什么样 -->
+        <input class="text-input" id="fetch-url" type="url" placeholder="https://x.com/用户名/status/推文ID" disabled />
+        <div class="chip-row">
+          <button class="chip" id="fetch-go" disabled>抓取这条</button>
+          <span class="mini-label">即将上线</span>
+        </div>
+        <p class="mini-label">将支持粘贴单条推文链接，自动带出正文、发布时间与互动数据，不用手动复制。想批量导入自己的推文，现在可以用左栏「04 用 X API 同步推文」。</p>
+      </section>
+
+      <section class="control-section hidden" id="custom-section">
+        <div class="section-heading"><span>02</span><div><h2>编辑文案</h2><p>从推文库带过来的内容可以直接改，也可以从头写</p></div></div>
         <textarea id="custom-text" rows="8" placeholder="写点什么……"></textarea>
+        <div class="chip-row">
+          <button class="chip" id="custom-reseed">用推文库选中的那条替换</button>
+        </div>
       </section>
 
       <section class="control-section">
