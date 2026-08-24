@@ -31,9 +31,9 @@ const state = {
   cardY: -37,
   cardDragged: false,    // 用户是否手动定过位；定过就不再自动往安全区中心贴
   fitOffsetY: 0,         // 为贴合安全区中心做的补偿（3:4 与 9:16 的安全区中心不一样高）
-  cardOpacity: 100,
+  cardOpacity: 90,
   bodySize: 17,          // 正文基准字号（px），size-xs/s/m 四档在此基础上按倍率缩
-  bgDim: 0,              // 背景压暗（%），0 = 不压暗；card 模式无背景故不生效
+  bgDim: 10,             // 背景压暗（%），0 = 不压暗；card 模式无背景故不生效
   guidesOn: true,        // 抖音安全区参考线（仅预览，不进导出）
   search: "",
   chip: { kind: "all", v: "" },
@@ -1412,7 +1412,7 @@ async function applyUrlParams() {
   if (q.get("theme") === "dark") state.theme = "dark";
   if (q.has("scale")) state.cardScale = clampNum(q.get("scale"), 50, 140, state.cardScale);
   if (q.has("opacity")) state.cardOpacity = clampNum(q.get("opacity"), 30, 100, state.cardOpacity);
-  if (q.has("fontsize")) state.bodySize = clampNum(q.get("fontsize"), 14, 24, state.bodySize);
+  if (q.has("fontsize")) state.bodySize = clampNum(q.get("fontsize"), 14, 22, state.bodySize);
   if (q.has("dim")) state.bgDim = clampNum(q.get("dim"), 0, 55, state.bgDim);
   if (q.get("img")) state.mediaUrl = q.get("img");
   if (q.get("media") === "off") state.mediaOn = false;
@@ -1501,9 +1501,9 @@ function buildShareUrl(embed) {
   if (state.theme !== "light") q.set("theme", state.theme);
   // 与初始默认值一致的项不写进链接，保持简短（省略时页面会用同样的默认值）
   if (state.cardScale !== 95) q.set("scale", state.cardScale);
-  if (state.cardOpacity !== 100) q.set("opacity", state.cardOpacity);
+  if (state.cardOpacity !== 90) q.set("opacity", state.cardOpacity);
   if (state.bodySize !== 17) q.set("fontsize", state.bodySize);
-  if (state.bgDim !== 0) q.set("dim", state.bgDim);
+  if (state.bgDim !== 10) q.set("dim", state.bgDim);
   if (!state.mediaOn) q.set("media", "off");
   if (Math.round(state.cardX) !== -20) q.set("x", Math.round(state.cardX));
   if (Math.round(state.cardY) !== -37) q.set("y", Math.round(state.cardY));

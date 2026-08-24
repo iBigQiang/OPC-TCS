@@ -196,7 +196,7 @@ a.ghost-btn:hover { color: var(--text); }
 .sg-bottom { left: 30px; right: 78px; bottom: 150px; border-bottom: 1.5px dashed rgba(254, 44, 85, 0.85); }
 .sg-left { top: var(--sg-top); bottom: 150px; left: 30px; border-left: 1.5px dashed rgba(254, 44, 85, 0.6); }
 /* 底色是必须的：标签落在斜线区里，透明底会让斜线穿过文字 */
-.sg-label { position: absolute; font-size: 13px; font-weight: 600; letter-spacing: 2px; line-height: 1; padding: 4px 8px; color: #fe2c55d9; white-space: nowrap; border: 1px dashed #fe2c55d9; border-radius: 8px; background: rgba(255, 255, 255, 0.94); }
+.sg-label { position: absolute; font-size: 13px; letter-spacing: 2px; line-height: 1; padding: 4px 8px; color: #ffffff; white-space: nowrap; border: 1px solid #fe2c55d9; border-radius: 10px; background: #fe2c55d9; }
 /* 标签放在各自安全区「外侧」条带的正中间，不压在卡片上。
    顶部/底部条带跨满画布宽，所以水平居中即可；
    右侧条带的高度是「安全区上下线之间」，不是整个画布，
