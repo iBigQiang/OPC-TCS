@@ -439,11 +439,16 @@ function renderCard() {
   }
 }
 
-/* 安全区可用高度（预览 px）。上下边界见 styles.css 的 .sg-top / .sg-bottom，
-   tall 模式上边界是 88px。安全区垂直中心比画布中心高 37.5px，正好对应默认 cardY=-37。 */
+/* 卡片在安全区内能占的最大高度（预览 px）。
+   卡片是以「画布中心 + cardY」为中心居中放置的，所以能撑开的高度取决于
+   中心到上下两条安全线里更近的那一条——不能直接用安全区总高，
+   否则中心稍微偏一点就会从另一头溢出（tall 的上边界是 88 不是 75，
+   默认 cardY=-37 正好让中心比安全区中心高 6px）。 */
 function safeAreaHeight(stage) {
   const top = state.mode === "tall" ? 88 : 75;
-  return stage.clientHeight - top - 150;
+  const bottom = stage.clientHeight - 150;
+  const center = stage.clientHeight / 2 + state.cardY;
+  return Math.max(120, 2 * Math.min(center - top, bottom - center) - 4);   // 留 2px 余量，避免舍入后压线
 }
 
 /* 图片被压到比这更矮就没意义了，此时改为缩整张卡片 */
@@ -491,7 +496,11 @@ function measureFitScale() {
     return;
   }
 
-  const avail = safeAreaHeight(stage);
+  // 关键：avail 是「屏幕上的」高度，而这里测的都是布局高度，最终还要再乘一次 cardScale。
+  // 所以先把可用高度折算回布局坐标系，否则卡片只会填到安全区的 cardScale%（默认 95%），
+  // 底部白白空一截。图片本身不会放大超过自然尺寸，所以调小「卡片大小」时滑块依然有效。
+  const scale = Math.max(0.1, state.cardScale / 100);
+  const avail = safeAreaHeight(stage) / scale;
   // 先复位成「全宽等比」再测，才能算出卡片里除图片以外占了多少
   media.classList.remove("fit", "crop");
   media.style.maxHeight = "";
@@ -1160,7 +1169,7 @@ function bind() {
     if (!state.customText.trim()) state.customDate = "";
     renderCard();
   };
-  $("card-scale").oninput = (e) => { state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; applyCardTransform(); refreshAgentPrompt(); };
+  $("card-scale").oninput = (e) => { state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; measureFitScale(); refreshAgentPrompt(); };
   $("card-opacity").oninput = (e) => { state.cardOpacity = Number(e.target.value); renderCard(); };
   // 字号会改变卡片高度，必须走全量渲染让 fitScale 重算；压暗只改一层 opacity，走轻量路径
   $("body-size").oninput = (e) => { state.bodySize = Number(e.target.value); renderCard(); };
