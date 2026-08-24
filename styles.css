@@ -177,13 +177,16 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .sg-right { top: 0; bottom: 0; right: 78px; border-right: 1.5px dashed rgba(254, 44, 85, 0.85); }
 .sg-bottom { left: 0; right: 0; bottom: 150px; border-bottom: 1.5px dashed rgba(254, 44, 85, 0.85); }
 .sg-left { top: 0; bottom: 0; left: 30px; border-left: 1.5px dashed rgba(254, 44, 85, 0.6); }
-.sg-label { position: absolute; font-size: 10px; line-height: 1; padding: 3px 6px; border-radius: 4px; background: rgba(254, 44, 85, 0.85); color: #fff; white-space: nowrap; }
+.sg-label { position: absolute; font-size: 13px; line-height: 1; padding: 3px 6px; color: #fe2c55d9; white-space: nowrap; border: 1px dashed #fe2c55d9; border-radius: 8px; background: transparent; }
 /* 标签放在各自安全区「外侧」条带的正中间，不压在卡片上。
-   （标签是 absolute + pointer-events:none，本来就不参与布局，
-   挪位置纯粹为了不挡住卡片内容） */
+   顶部/底部条带跨满画布宽，所以水平居中即可；
+   右侧条带的高度是「安全区上下线之间」，不是整个画布，
+   所以垂直方向要对齐安全区中心（3:4 是 322.5，9:16 是 449），不能用 50%。
+   （标签是 absolute + pointer-events:none，本来就不参与布局） */
 .sg-label-top { top: 37px; left: 50%; transform: translate(-50%, -50%); }
 .sg-label-bottom { bottom: 75px; left: 50%; transform: translate(-50%, 50%); }
-.sg-label-right { right: 39px; top: 50%; transform: translate(50%, -50%) rotate(90deg); }
+.sg-label-right { right: 39px; top: 322.5px; transform: translate(50%, -50%) rotate(90deg); }
+.stage.tall .sg-label-right { top: 449px; }
 
 .stage.card-only { height: auto; min-height: 0; box-shadow: none; overflow: visible; }
 .stage.card-only .stage-bg { display: none; }

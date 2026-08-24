@@ -120,10 +120,17 @@ localStorage keys：`tcs-profile` / `tcs-posts` / `tcs-xkey` / `tcs-xsync` / `tc
 配图布局是三档（`layoutMedia()`），**绝不用居中裁切**（会把图片头尾都切掉）：
 
 1. 全宽放得下 → 原样完整显示
-2. 放不下但等比缩小后不至于太窄（≥ 卡片宽的 55%）→ 加 `.fit`，等比缩小、宽度自动收窄，图片仍完整
+2. 放不下但等比缩小后不至于太窄（≥ 卡片宽的 `MEDIA_MIN_W_RATIO`，当前 0.15）→ 加 `.fit`，等比缩小、宽度自动收窄，图片仍完整
 3. 缩完太窄 → 加 `.crop`，保持全宽、`object-position: top`，只截掉底部
 
-「自由编辑」里正文贴的图片直链会被 `splitMediaFromText()` 自动识别成配图并从正文摘掉（X 上媒体链接本来也不显示为文本）。`effectiveContent()` 是正文与配图的唯一出口，`renderCard()` / `buildShareUrl()` / 「复制文案」都走它。
+阈值刻意压得很低：**完整显示优先**，宁可图小也别切内容，裁切只是「缩到几乎看不出是什么」的兜底。
+
+**两个容易算错的地方**：
+
+- `fitScale` 让「卡片**布局**高度 = 可用高度」，但最终 transform 还要再乘一次 `cardScale`。所以可用高度必须先除以 `cardScale` 折算回布局坐标系，否则卡片只填到安全区的 95%。
+- `cardY = -37` 是按 3:4 定的（3:4 安全区中心正好在画布中心上方 37.5px），**9:16 的上安全线是 88 不是 75**，中心只在上方 31px。差这 6px 会让卡片整体偏上、底部空一截。`state.fitOffsetY` 就是补这个差值；用户一拖动卡片（`state.cardDragged`）就清零，拖动优先。预览与两条导出管线都走 `effectiveCardY()`，不能只改一处。
+
+「自由编辑」里正文贴的图片直链会被 `splitMediaFromText()` 自动识别成配图并从正文摘掉（X 上媒体链接本来也不显示为文本）；反过来 `primeCustomText()` 带入推文时也会把配图以链接形式追加到正文末尾，形成闭环——手动删掉那行链接，配图就没了。`effectiveContent()` 是正文与配图的唯一出口，`renderCard()` / `buildShareUrl()` / 「复制文案」都走它。
 
 ### Agent 接口：URL 参数 → embed 渲染
 

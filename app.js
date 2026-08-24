@@ -29,6 +29,8 @@ const state = {
   fitScale: 1,           // 长文自动适配画框的缩放
   cardX: -20,            // 拖动偏移（px，相对画框中心）
   cardY: -37,
+  cardDragged: false,    // 用户是否手动定过位；定过就不再自动往安全区中心贴
+  fitOffsetY: 0,         // 为贴合安全区中心做的补偿（3:4 与 9:16 的安全区中心不一样高）
   cardOpacity: 100,
   bodySize: 17,          // 正文基准字号（px），size-xs/s/m 四档在此基础上按倍率缩
   bgDim: 0,              // 背景压暗（%），0 = 不压暗；card 模式无背景故不生效
@@ -286,8 +288,11 @@ function selectPost(p) {
 function primeCustomText(force) {
   if (!state.selected) return;
   if (!force && state.customText.trim() && state.customText !== state.customSeed) return;
-  state.customText = state.selected.text;
-  state.customSeed = state.selected.text;
+  // 配图以链接形式一并带进编辑框：想去掉图片，手动删掉这行链接即可
+  const img = (state.selected.media && state.selected.media.image) || "";
+  const text = img ? state.selected.text.replace(/\s+$/, "") + "\n" + img : state.selected.text;
+  state.customText = text;
+  state.customSeed = text;
   state.customDate = state.selected.date || "";   // 日期跟着来源推文走，不用今天
   $("custom-text").value = state.customText;
 }
@@ -330,6 +335,9 @@ function effectiveContent() {
   if (state.tab === "custom") {
     const sp = splitMediaFromText(state.customText);
     if (sp.image) return { text: sp.text, image: sp.image };
+    // 内容是从推文带进来的（customSeed 有值），图链就一定在文本里；
+    // 现在文本里没有了，说明用户主动删掉了 —— 不要再拿 mediaUrl 把它变回来
+    if (state.customSeed) return { text: state.customText, image: "" };
     return { text: state.customText, image: state.mediaUrl };
   }
   return { text: currentText(), image: state.mediaUrl };
@@ -439,22 +447,27 @@ function renderCard() {
   }
 }
 
-/* 卡片在安全区内能占的最大高度（预览 px）。
-   卡片是以「画布中心 + cardY」为中心居中放置的，所以能撑开的高度取决于
-   中心到上下两条安全线里更近的那一条——不能直接用安全区总高，
-   否则中心稍微偏一点就会从另一头溢出（tall 的上边界是 88 不是 75，
-   默认 cardY=-37 正好让中心比安全区中心高 6px）。 */
-function safeAreaHeight(stage) {
+/* 安全区上下边界与垂直中心（预览 px）。
+   tall 的上边界是 88 不是 75，所以两种模式的安全区中心并不一样：
+   3:4 在画布中心上方 37.5px（正好等于默认 cardY），9:16 只在上方 31px。 */
+function safeBounds(stage) {
   const top = state.mode === "tall" ? 88 : 75;
   const bottom = stage.clientHeight - 150;
-  const center = stage.clientHeight / 2 + state.cardY;
-  return Math.max(120, 2 * Math.min(center - top, bottom - center) - 4);   // 留 2px 余量，避免舍入后压线
+  return { top, bottom, center: (top + bottom) / 2, height: bottom - top };
+}
+
+/* 卡片实际的垂直偏移 = 用户设的 cardY + 贴合安全区的补偿。
+   预览和两条导出管线必须共用它，否则成品位置会和预览对不上。 */
+function effectiveCardY() {
+  return state.cardY + (state.fitOffsetY || 0);
 }
 
 /* 图片被压到比这更矮就没意义了，此时改为缩整张卡片 */
 const MEDIA_MIN_H = 140;
-/* 等比缩小后宽度不足卡片的这个比例，就说明图太"瘦"了，改用全宽+顶部裁切 */
-const MEDIA_MIN_W_RATIO = 0.55;
+/* 等比缩小后宽度不足卡片的这个比例，才退而求其次用裁切。
+   定得很低是刻意的：完整显示优先，宁可图小一点也别把内容切掉，
+   裁切只是「缩到几乎看不出是什么」时的极端兜底。 */
+const MEDIA_MIN_W_RATIO = 0.15;
 
 /* 图片在可用高度 room 内怎么摆：
    1) 全宽放得下 → 原样完整显示
@@ -491,16 +504,24 @@ function measureFitScale() {
     media.classList.remove("fit", "crop");
     media.style.maxHeight = "";
     media.style.height = "";
+    state.fitOffsetY = 0;
     state.fitScale = Math.min(1, (stage.clientHeight * 0.92) / card.offsetHeight);
     applyCardTransform();
     return;
   }
 
-  // 关键：avail 是「屏幕上的」高度，而这里测的都是布局高度，最终还要再乘一次 cardScale。
-  // 所以先把可用高度折算回布局坐标系，否则卡片只会填到安全区的 cardScale%（默认 95%），
-  // 底部白白空一截。图片本身不会放大超过自然尺寸，所以调小「卡片大小」时滑块依然有效。
+  /* 有配图时把卡片对齐到安全区中心再撑满。默认 cardY=-37 是按 3:4 定的
+     （3:4 安全区中心正好在画布中心上方 37.5px），9:16 只在上方 31px，
+     照搬就会整体偏上、底部空一截。这里用 fitOffsetY 补掉这 6px 差值；
+     用户一旦手动拖动卡片，initDrag 会把它清零，拖动依然说了算。 */
+  const sb = safeBounds(stage);
+  state.fitOffsetY = state.cardDragged ? 0 : sb.center - stage.clientHeight / 2 - state.cardY;
+
+  // avail 是「屏幕上的」高度，而这里测的都是布局高度，最终还要再乘一次 cardScale，
+  // 所以先折算回布局坐标系，否则卡片只会填到安全区的 cardScale%（默认 95%）。
+  // 图片本身不会放大超过自然尺寸，所以调小「卡片大小」时滑块依然有效。
   const scale = Math.max(0.1, state.cardScale / 100);
-  const avail = safeAreaHeight(stage) / scale;
+  const avail = Math.max(120, sb.height - 4) / scale;   // 留 2px 余量，避免舍入后压线
   // 先复位成「全宽等比」再测，才能算出卡片里除图片以外占了多少
   media.classList.remove("fit", "crop");
   media.style.maxHeight = "";
@@ -515,7 +536,7 @@ function applyCardTransform() {
   const card = $("tweet-card");
   if (state.mode === "card") return;
   const s = (state.fitScale * state.cardScale) / 100;
-  card.style.transform = `translate(-50%, -50%) translate(${state.cardX}px, ${state.cardY}px) scale(${s.toFixed(3)})`;
+  card.style.transform = `translate(-50%, -50%) translate(${state.cardX}px, ${effectiveCardY()}px) scale(${s.toFixed(3)})`;
 }
 
 /* 拖动卡片（仅竖图模式），双击回中 */
@@ -527,6 +548,8 @@ function initDrag() {
     if (state.mode === "card") return;
     e.preventDefault();
     drag = { x0: e.clientX, y0: e.clientY, baseX: state.cardX, baseY: state.cardY };
+    state.cardDragged = true;   // 用户自己定位了，别再自动往安全区中心贴
+    state.fitOffsetY = 0;
     card.classList.add("dragging");
     card.setPointerCapture(e.pointerId);
   });
@@ -541,7 +564,11 @@ function initDrag() {
   const end = () => { drag = null; card.classList.remove("dragging"); };
   card.addEventListener("pointerup", end);
   card.addEventListener("pointercancel", end);
-  card.addEventListener("dblclick", () => { state.cardX = 0; state.cardY = 0; applyCardTransform(); });
+  // 双击回中：连同「手动定过位」的标记一起复位，重新交给安全区自动贴合
+  card.addEventListener("dblclick", () => {
+    state.cardX = 0; state.cardY = 0; state.cardDragged = false;
+    measureFitScale();
+  });
 }
 
 /* ---------- 背景 ---------- */
@@ -671,7 +698,7 @@ async function composePoster() {
     const cardCanvas = await captureCardCanvas(2);
     const s = (state.fitScale * state.cardScale) / 100;
     const cw = card.offsetWidth * 2 * s, ch = card.offsetHeight * 2 * s;
-    const cx = W / 2 + state.cardX * 2, cy = H / 2 + state.cardY * 2;
+    const cx = W / 2 + state.cardX * 2, cy = H / 2 + effectiveCardY() * 2;
     const bg = new Image();
     await new Promise((res, rej) => { bg.onload = res; bg.onerror = rej; bg.src = state.bg; });
     const cv = document.createElement("canvas");
@@ -1041,7 +1068,7 @@ async function exportLive() {
     const cardCanvas = await captureCardCanvas(2);
     const s = (state.fitScale * state.cardScale) / 100;
     const cw = card.offsetWidth * 2 * s, ch = card.offsetHeight * 2 * s;
-    const cx = W / 2 + state.cardX * 2, cy = H / 2 + state.cardY * 2;
+    const cx = W / 2 + state.cardX * 2, cy = H / 2 + effectiveCardY() * 2;
 
     const bg = new Image();
     await new Promise((res, rej) => { bg.onload = res; bg.onerror = rej; bg.src = state.bg; });
@@ -1389,7 +1416,7 @@ async function applyUrlParams() {
   if (q.get("img")) state.mediaUrl = q.get("img");
   if (q.get("media") === "off") state.mediaOn = false;
   if (q.has("x")) state.cardX = clampNum(q.get("x"), -400, 400, 0);
-  if (q.has("y")) state.cardY = clampNum(q.get("y"), -600, 600, 0);
+  if (q.has("y")) { state.cardY = clampNum(q.get("y"), -600, 600, 0); state.cardDragged = true; }
   if (q.get("guides") === "0") state.guidesOn = false;
 
   if (q.get("metrics") === "off") state.metricsOn = false;
