@@ -4,6 +4,35 @@
 
 ---
 
+## Windows 上写文本文件，一律显式 encoding="utf-8"
+
+**踩坑两次**（2026-08-23 `llms.txt`、2026-08-24 `backgrounds/manifest.json`）：Python 的 `open(path, "w")` 在 Windows 上默认用 GBK。含中文的产物写出来就是 GBK，浏览器按 UTF-8 读会全变乱码——而且本地 Python 再读回来还是对的，不跑一次前端根本发现不了。
+
+**规则**：项目里任何写文本文件的脚本都要显式指定：
+
+```python
+open(path, "w", encoding="utf-8")
+json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False)
+```
+
+**改完验证**：`python -c "open('文件','rb').read().decode('utf-8')"`，能过就是对的。
+
+---
+
+## flex 容器里的 img，固有尺寸会撑大容器
+
+**踩坑**（2026-08-24，hero 加 logo）：想让 logo 高度自动等于旁边文字块的高度，写了 `align-self: stretch` + `height: auto` + `aspect-ratio: 1`。结果 img 的固有高度（256px）参与了 flex 容器的高度计算，把 hero 从 137px 撑到 292px——logo 没去适应文字，反而是文字被它撑开了。
+
+**规则**：要让 flex 里的 img「跟随」容器高度而不是「决定」容器高度，把**主轴尺寸写死、交叉轴交给 stretch**：
+
+```css
+.logo { flex: 0 0 auto; width: 96px; height: auto; min-height: 0; align-self: stretch; object-fit: contain; }
+```
+
+判断方法：先把 img 临时 `display:none`，看容器高度是多少——那才是「其他内容决定的高度」，img 的表现应该向它对齐。
+
+---
+
 ## 加了「state 回写控件」之后，改 HTML 的默认值就失效了
 
 **踩坑**（2026-08-23，第二次栽在同一处）：为修「URL 参数进来但滑块拇指不动」加了 `syncSliderInputs()`，它在初始化时用 `state` 的值覆盖所有滑块。此后再想调默认值，只改 `index.html` 的 `value` **完全没有效果**——页面一加载就被 state 覆盖回去了。

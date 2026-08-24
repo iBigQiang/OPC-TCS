@@ -9,6 +9,11 @@ const $ = (id) => document.getElementById(id);
 
 const DEFAULT_PROFILE = { name: "你的名字", handle: "yourname", avatar: "avatar.jpg", verified: true };
 
+/* 卡片默认落点（px，相对画框中心）。双击复位、state 初值、buildShareUrl()
+   的「是否写进链接」判断共用这两个常量，散成三处硬编码迟早对不上。 */
+const DEFAULT_CARD_X = -20;
+const DEFAULT_CARD_Y = -37;
+
 const state = {
   profile: { ...DEFAULT_PROFILE },
   posts: [],
@@ -27,8 +32,8 @@ const state = {
   // 默认落在抖音安全区中央：右侧 140px / 底部 300px / 顶部 150px / 左侧 60px（画布px，预览折半）
   cardScale: 95,         // 用户设置的缩放（%），在 fitScale 基础上叠加
   fitScale: 1,           // 长文自动适配画框的缩放
-  cardX: -20,            // 拖动偏移（px，相对画框中心）
-  cardY: -37,
+  cardX: DEFAULT_CARD_X, // 拖动偏移（px，相对画框中心）
+  cardY: DEFAULT_CARD_Y,
   cardDragged: false,    // 用户是否手动定过位；定过就不再自动往安全区中心贴
   fitOffsetY: 0,         // 为贴合安全区中心做的补偿（3:4 与 9:16 的安全区中心不一样高）
   cardOpacity: 90,
@@ -567,7 +572,7 @@ function initDrag() {
   card.addEventListener("pointercancel", end);
   // 双击回中：连同「手动定过位」的标记一起复位，重新交给安全区自动贴合
   card.addEventListener("dblclick", () => {
-    state.cardX = 0; state.cardY = 0; state.cardDragged = false;
+    state.cardX = DEFAULT_CARD_X; state.cardY = DEFAULT_CARD_Y; state.cardDragged = false;
     measureFitScale();
   });
 }
@@ -1197,11 +1202,12 @@ function bind() {
     if (!state.customText.trim()) state.customDate = "";
     renderCard();
   };
-  $("card-scale").oninput = (e) => { state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; measureFitScale(); refreshAgentPrompt(); };
-  $("card-opacity").oninput = (e) => { state.cardOpacity = Number(e.target.value); renderCard(); };
+  $("card-scale").oninput = (e) => { paintRange(e.target); state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; measureFitScale(); refreshAgentPrompt(); };
+  $("card-opacity").oninput = (e) => { paintRange(e.target); state.cardOpacity = Number(e.target.value); renderCard(); };
   // 字号会改变卡片高度，必须走全量渲染让 fitScale 重算；压暗只改一层 opacity，走轻量路径
-  $("body-size").oninput = (e) => { state.bodySize = Number(e.target.value); renderCard(); };
+  $("body-size").oninput = (e) => { paintRange(e.target); state.bodySize = Number(e.target.value); renderCard(); };
   $("bg-dim").oninput = (e) => {
+    paintRange(e.target);
     state.bgDim = Number(e.target.value);
     $("stage-dim").style.opacity = state.bgDim / 100;
     $("dim-val").textContent = state.bgDim + "%";
@@ -1362,6 +1368,14 @@ function syncToggleButtons() {
   ["poster", "tall", "card"].forEach((m) => $("mode-" + m).classList.toggle("active", state.mode === m));
 }
 
+/* 把滑块已选比例写进 --fill，供 CSS 画填充色。
+   Chrome 没有「已填充轨道」的伪元素，只能用渐变模拟，所以取值一变就得刷。 */
+function paintRange(el) {
+  const min = Number(el.min || 0), max = Number(el.max || 100);
+  const pct = max > min ? ((Number(el.value) - min) / (max - min)) * 100 : 0;
+  el.style.setProperty("--fill", pct + "%");
+}
+
 /* 把 state 回写到滑块。URL 参数进来时只改了 state，拇指还停在 HTML 里的初始 value，
    会出现"标签写 120%、卡片也是 120%，拇指却在 95"的错位。 */
 function syncSliderInputs() {
@@ -1369,6 +1383,7 @@ function syncSliderInputs() {
   $("card-opacity").value = state.cardOpacity;
   $("body-size").value = state.bodySize;
   $("bg-dim").value = state.bgDim;
+  ["card-scale", "card-opacity", "body-size", "bg-dim"].forEach((id) => paintRange($(id)));
 }
 
 function blobToDataUrl(blob) {
@@ -1505,8 +1520,8 @@ function buildShareUrl(embed) {
   if (state.bodySize !== 17) q.set("fontsize", state.bodySize);
   if (state.bgDim !== 10) q.set("dim", state.bgDim);
   if (!state.mediaOn) q.set("media", "off");
-  if (Math.round(state.cardX) !== -20) q.set("x", Math.round(state.cardX));
-  if (Math.round(state.cardY) !== -37) q.set("y", Math.round(state.cardY));
+  if (Math.round(state.cardX) !== DEFAULT_CARD_X) q.set("x", Math.round(state.cardX));
+  if (Math.round(state.cardY) !== DEFAULT_CARD_Y) q.set("y", Math.round(state.cardY));
   if (!state.metricsOn) q.set("metrics", "off");
   if (state.bg && state.bg.startsWith("backgrounds/")) q.set("bg", state.bg.replace("backgrounds/", "").replace(/\.(jpg|jpeg|png|svg)$/, ""));
   if (embed) q.set("embed", "1");

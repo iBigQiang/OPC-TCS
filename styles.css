@@ -1,12 +1,12 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg: #fafaf9;
+  --bg: #f8f7f6;
   --card: #fff;
   --border: #e7e5e4;
   --text: #1c1917;
   --muted: #78716c;
-  --accent: #b45309;
+  --accent: #fe2c55d9;
   --accent-hover: #92400e;
   --accent-light: #fef3c7;
   --radius: 12px;
@@ -42,7 +42,12 @@ a:hover { color: var(--accent-hover); }
 .topnav-back:hover { color: #fff; }
 .topnav-back svg { width: 14px; height: 14px; }
 
-.hero { max-width: 1480px; margin: 0 auto; padding: 1.75rem 1.5rem 0.5rem; }
+/* logo 与文字块并排。宽度写死、高度交给 stretch：img 的固有高度会参与
+   flex 容器的高度计算，写 height:auto 会反过来把 hero 撑大。
+   min-height:0 + object-fit 让它在文字块高度内等比居中。 */
+.hero { max-width: 1480px; margin: 0 auto; padding: 1.75rem 1.5rem 0.5rem; display: flex; align-items: stretch; gap: 1rem; }
+.hero-logo { flex: 0 0 auto; width: 96px; height: auto; min-height: 0; align-self: stretch; object-fit: contain; }
+.hero-text { min-width: 0; }
 .hero h1 { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.3rem; }
 .hero p { color: var(--muted); font-size: 0.95rem; /*max-width: 720px;*/ }
 .hero-agent { margin-top: 0.5rem; font-size: 0.85rem; }
@@ -122,7 +127,25 @@ a:hover { color: var(--accent-hover); }
 .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .option { display: flex; flex-direction: column; gap: 0.35rem; }
 .option.full { grid-column: 1 / -1; }
-input[type="range"] { width: 100%; accent-color: var(--accent); }
+/* 滑块全部自绘，不用 accent-color：后者的未填充轨道颜色由浏览器按对比度
+   自行推导，换成亮色主题色时会变成深灰/黑，没法控制。
+   填充比例走 --fill 变量，由 paintRange() 在取值变化时写入（Chrome 没有
+   ::-moz-range-progress 这种伪元素，只能用渐变模拟）。 */
+input[type="range"] {
+  width: 100%; height: 16px; cursor: pointer;
+  -webkit-appearance: none; appearance: none; background: transparent;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 999px;
+  background: linear-gradient(var(--accent) 0 0) no-repeat 0 / var(--fill, 0%) 100%, var(--border);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; border: 0;
+  width: 16px; height: 16px; margin-top: -5px; border-radius: 50%; background: var(--accent);
+}
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 999px; background: var(--border); }
+input[type="range"]::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
+input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: var(--accent); }
 
 .bg-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
 .bg-thumb { aspect-ratio: 3 / 4; border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid transparent; padding: 0; background: var(--bg); }
@@ -149,15 +172,27 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .preview-topbar { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.8rem; flex-wrap: wrap; }
 .preview-topbar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .drag-hint { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
-.preview-actions { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+/* 按钮组强制独占一行并居中。原来用 margin-left:auto 靠右，
+   flex-wrap 换行后它单独占第二行，就成了左边留白、右边贴边 */
+.preview-actions { flex: 1 0 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
 .preview-actions a { color: var(--muted); font-size: 0.74rem; }
-.ghost-btn { border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 0.42rem 0.7rem; font-size: 0.74rem; cursor: pointer; font-family: inherit; white-space: nowrap; }
+/* 整行按钮共用同一套盒模型，保证等高：
+   <a> 和 <button> 的默认 line-height 不同（normal vs 继承），
+   主按钮又比次按钮字号大，三者混在一行就会高低不齐。
+   统一 line-height + 上下 padding + 字号，主按钮只靠颜色/字重/左右留白强调。 */
+.ghost-btn, .primary-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1.2; padding: 0.42rem 0.7rem; font-size: 0.74rem;
+  border-radius: 8px; cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.ghost-btn { border: 1px solid var(--border); background: var(--card); color: var(--text); }
 .ghost-btn:hover { background: var(--bg); }
 .ghost-btn.active { border-color: #fe2c55; color: #fe2c55; }
-/* 「查看原推」是 <a>，要抹掉链接色并对齐按钮的行高盒模型，才和旁边的按钮一致 */
-a.ghost-btn { color: var(--text); text-decoration: none; display: inline-flex; align-items: center; line-height: 1; }
+
+a.ghost-btn { text-decoration: none; }
 a.ghost-btn:hover { color: var(--text); }
-.primary-btn { border: 0; background: var(--accent); color: #fff; border-radius: 8px; padding: 0.48rem 1rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+/* border 用 transparent 而不是 0：盒模型要和 ghost-btn 一致，否则矮 2px */
+.primary-btn { border: 1px solid transparent; background: var(--accent); color: #fff; font-weight: 600; padding-left: 1rem; padding-right: 1rem; }
 .primary-btn:hover { background: var(--accent-hover); }
 .primary-btn:disabled { opacity: 0.5; cursor: wait; }
 
@@ -177,12 +212,13 @@ a.ghost-btn:hover { color: var(--text); }
 /* 抖音安全区参考线（画布 1080×1440，预览为 1/2 缩放）：顶部 150px、右侧 140px、底部 300px、左侧 60px */
 .safe-guides { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 .safe-guides.hidden { display: none; }
-/* 安全区外的四条边带打 45° 斜虚线，把中间的可用区衬出来。
-   用 SVG tile 而不是 repeating-linear-gradient：后者只能画连续长条纹，
-   要做成断续的短线段还得再叠一层 mask，不如一个 tile 直接画清楚。 */
+/* 安全区外的四条边带铺点阵，把中间的可用区衬出来。
+   radial-gradient 平铺即可，不需要 SVG tile。
+   （之前是 45° 斜虚线：url("data:image/svg+xml,...<line stroke-dasharray='5 4'/>...")） */
 .sg-hatch {
   position: absolute;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cline x1='-3' y1='17' x2='17' y2='-3' stroke='%23fe2c55' stroke-opacity='.85' stroke-width='1.6' stroke-dasharray='5 4'/%3E%3C/svg%3E");
+  background-image: radial-gradient(#fe2c55d9 1px, transparent 1px);
+  background-size: 9px 9px;
 }
 .sg-hatch-top { top: 0; left: 0; right: 0; height: var(--sg-top); }
 .sg-hatch-bottom { bottom: 0; left: 0; right: 0; height: 150px; }
@@ -238,7 +274,7 @@ a.ghost-btn:hover { color: var(--text); }
    默认全宽等比，装不下时先等比缩小（宽度自动收窄、图片保持完整）；
    缩到太窄就换 .crop：保持全宽、从顶部开始、只截掉底部——
    绝不用居中裁切，那会把图片头尾都切掉。 */
-.tc-media { display: block; width: 100%; height: auto; margin: 12px auto 0; border-radius: 16px; border: 1px solid #eff3f4; }
+.tc-media { display: block; width: 100%; height: auto; margin: 12px auto 0; border-radius: 5px; border: 1px solid #eff3f4; }
 .tc-media.fit { width: auto; max-width: 100%; }
 .tc-media.crop { width: 100%; object-fit: cover; object-position: top center; }
 .tc-media.hidden { display: none; }

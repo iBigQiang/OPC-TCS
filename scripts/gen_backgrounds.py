@@ -46,8 +46,10 @@ SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1440" view
   <rect width="1080" height="1440" filter="url(#noise)" opacity="0.6" fill="none"/>
 </svg>"""
 
-# 真实照片（来自 picsum.photos，Unsplash 授权免费可用）；自己加图就往这里加一行
+# 真实照片（来自 picsum.photos，Unsplash 授权免费可用）；自己加图就往这里加一行。
+# 顺序即界面里的顺序，第一条是页面默认背景。
 PHOTOS = [
+    ("photo-wuyanzu.jpg",      "人物竖屏"),
     ("photo-misty-marsh.jpg",  "雾泽晨光"),
     ("photo-forest-coast.jpg", "森林海岸"),
     ("photo-pebble-beach.jpg", "冷调海滩"),
@@ -78,8 +80,9 @@ manifest = [{"file": fn, "name": name} for fn, name in PHOTOS if os.path.exists(
 for slug, name, colors, angle, noise in PALETTES:
     svg = SVG.format(c0=colors[0], c1=colors[1], c2=colors[2], angle=angle, noise=noise)
     fn = f"{slug}.svg"
-    open(os.path.join(DST, fn), "w").write(svg)
+    open(os.path.join(DST, fn), "w", encoding="utf-8").write(svg)
     manifest.append({"file": fn, "name": name})
 
-json.dump(manifest, open(os.path.join(DST, "manifest.json"), "w"), ensure_ascii=False, indent=1)
+# encoding 必须显式指定：Windows 默认 GBK，写出的 manifest 浏览器会读成乱码
+json.dump(manifest, open(os.path.join(DST, "manifest.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print(f"manifest: {len(manifest)} backgrounds ({len(manifest) - len(PALETTES)} photos + {len(PALETTES)} gradients)")

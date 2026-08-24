@@ -142,7 +142,7 @@ localStorage keys：`tcs-profile` / `tcs-posts` / `tcs-xkey` / `tcs-xsync` / `tc
 2. `buildShareUrl()` —— 序列化（「复制链接」按钮和「交给 AI Agent」指令都用它）
 3. `llms.txt` —— 对外文档，Agent 读这个
 
-`buildShareUrl()` 只写非默认值以保持链接简短，默认值是**硬编码**在函数里的（`scale 95` / `opacity 90` / `fontsize 17` / `dim 10` / `x -20` / `y -37`）。改 `state` 的初始值时这里要一起改，否则链接会漏参数。同理，`index.html` 里对应滑块的 `value` 也必须跟着改 —— 这三处（`state.*`、`buildShareUrl()` 判断、滑块 `value`）任一漏改都会导致滑块位置与实际渲染值不符。`syncSliderInputs()` 负责在 URL 参数解析后把 state 回写到滑块，新增滑块要往里加一行。
+`buildShareUrl()` 只写非默认值以保持链接简短，默认值是**硬编码**在函数里的（`scale 95` / `opacity 90` / `fontsize 17` / `dim 10`）。卡片落点则抽成了常量 `DEFAULT_CARD_X` / `DEFAULT_CARD_Y`（`-20` / `-37`），state 初值、双击复位、`buildShareUrl()` 判断三处共用——**注意这两个 const 必须定义在 `state` 之前**，否则 state 初始化时命中暂时性死区直接抛错。改 `state` 的初始值时 `buildShareUrl()` 要一起改，否则链接会漏参数。同理，`index.html` 里对应滑块的 `value` 也必须跟着改 —— 这三处（`state.*`、`buildShareUrl()` 判断、滑块 `value`）任一漏改都会导致滑块位置与实际渲染值不符。`syncSliderInputs()` 负责在 URL 参数解析后把 state 回写到滑块，新增滑块要往里加一行。
 
 **注意 `syncSliderInputs()` 让「只改 HTML 的 value」彻底失效**——它会用 `state` 的值覆盖滑块。想调默认值必须改 `state`，`index.html` 的 `value` 只是首帧渲染前的占位。滑块的 `min`/`max` 改了还要同步 `applyUrlParams()` 里对应的 `clampNum` 范围。
 

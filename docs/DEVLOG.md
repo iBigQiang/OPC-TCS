@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-08-24 · 界面细节收敛：点阵纹理 / 自绘滑块 / logo / 默认背景
+
+### 安全区纹理换成点阵
+
+`.sg-hatch` 从 45° 斜虚线（SVG tile）换成 `radial-gradient` 点阵（1.5px 圆点、9px 间距），更轻、更规整，不跟卡片抢视觉。原斜线代码留在注释里，想换回去替换一行 `background-image` 即可。
+
+### 滑块自绘
+
+主题色换成亮粉后，滑块右侧未填充轨道变成了黑色。根因是 **`accent-color` 的轨道色由浏览器按对比度自行推导，开发者控制不了**——原来的深琥珀色推出浅灰轨道，亮粉色就推出深色。
+
+改成完全自绘：浅色轨道（`--border`）+ 主题色填充 + 圆点拇指。Chrome 没有「已填充部分」的伪元素，所以用 `--fill` 变量配合渐变模拟，`paintRange()` 在取值变化时刷新（`oninput` 与 `syncSliderInputs()` 两处都要调）。Firefox 走原生 `::-moz-range-progress`。
+
+### 预览顶栏
+
+- **按钮组居中**：原来用 `margin-left:auto` 靠右，`flex-wrap` 换行后它独占第二行，就成了左边留白右边贴边。改 `flex: 1 0 100%` + `justify-content: center`，实测左右边距各 16px。
+- **整行按钮等高**：`<a>`（查看原推）26.4px、`<button>` 30.7px、主按钮 32.6px，三种高度。原因是 `<a>` 和 `<button>` 默认 `line-height` 不同、主按钮字号更大。统一 `line-height: 1.2` + 上下 padding + 字号，主按钮只靠颜色/字重/左右留白强调，`border` 用 `transparent` 而非 `0` 以保持盒模型一致。实测六个按钮全部 28.8px、顶部对齐。
+
+### 双击复位
+
+原来双击把卡片归零到画布正中（`0, 0`），但默认态是 `-20 / -37` 加安全区补偿，两者对不上。改成复位到默认落点，并把 `-20 / -37` 抽成 `DEFAULT_CARD_X` / `DEFAULT_CARD_Y` 常量供 state 初值、双击复位、`buildShareUrl()` 判断三处共用。提示文案「双击回中」→「双击复位」。
+
+**注意这两个 const 必须定义在 `state` 之前**——`state` 初始化时就要用它们，定义在后面会命中暂时性死区直接抛错（我第一版就写错了位置）。
+
+### hero 加 logo
+
+`hero` 改 flex 布局，logo 在标题左侧。**宽度写死 96px、高度交给 `align-self: stretch`**——img 的固有高度会参与 flex 容器高度计算，写 `height:auto` 反而会把 hero 从 137px 撑到 292px。实测 96×101，与文字块精确等高。
+
+源图 1254×1254 / 2.2MB 压成 `logo.png` 256×256 / 139KB 供页面引用，源图加进 `.gitignore` 本地保留（进仓库会跟着部署上传，但页面根本不引用）。
+
+### 新增默认背景
+
+`backgrounds/photo-wuyanzu.jpg`（1080×2341，235KB），排在 `scripts/gen_backgrounds.py` 的 `PHOTOS` 首位——`renderBackgroundGrid()` 里 `i === 0 && !state.bg` 决定默认背景，所以首位即默认。源图 1290×2796 / 1.28MB 压到与现有背景同量级（平均 203KB）。
+
+**顺手修了生成脚本的编码 bug**：`open(..., "w")` 没指定 encoding，在 Windows 上按 GBK 写出 `manifest.json`，浏览器读到的中文全是乱码。这跟之前 `llms.txt` 被写成 GBK 是同一个坑，已在脚本里显式 `encoding="utf-8"` 并加注释。
+
+---
+
 ## 2026-08-23 · 安全区斜线纹理 + 卡片默认观感调整
 
 ### 安全区外围斜线

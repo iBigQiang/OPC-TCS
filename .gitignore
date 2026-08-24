@@ -15,3 +15,10 @@ Thumbs.db
 # 与 sessions/ 里的 X 登录态，推上公开仓库等于泄露凭证。
 # 如果确实要把这个服务纳入版本库，先把 .env 与 sessions/ 单独排除掉再放开这一行。
 docs/feedgrab-x/
+
+# logo 源图（1254x1254, 2.2MB）：页面用的是压缩后的 logo.png，
+# 源图留在本地即可，进仓库会跟着部署一起上传
+OPC-TCS_logo.png
+
+# 背景源图：已压缩进 backgrounds/，源图留本地
+bg_*.jpg

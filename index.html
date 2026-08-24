@@ -15,26 +15,29 @@
 <meta property="og:description" content="写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，纯本地运行，数据不上传。" />
 <meta property="og:locale" content="zh_CN" />
 <!-- 分享大图：建议自备 1200×630 的 og.png 替换掉这里的头像 -->
-<meta property="og:image" content="avatar.jpg" />
+<meta property="og:image" content="logo.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="推文卡片生成器（OPC Tweet Card Studio） | 推文一键做成抖音小红书图片卡片" />
-<meta name="twitter:description" content="写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。纯本地运行，数据不上传。" />
-<meta name="twitter:image" content="avatar.jpg" />
-<link rel="icon" href="avatar.jpg" />
+<meta name="twitter:description" content="写文案、在线抓取推文或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。纯本地运行，数据不上传。" />
+<meta name="twitter:image" content="logo.png" />
+<link rel="icon" href="logo.png" />
 <link rel="stylesheet" href="styles.css" />
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"推文卡片生成器（OPC Tweet Card Studio）","applicationCategory":"DesignApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"把推文做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明背景 PNG。所有处理在浏览器本地完成。","inLanguage":"zh-CN"}</script>
 </head>
 <body>
 <main class="app-shell">
   <nav class="topnav">
-    <a class="topnav-brand" href="https://tools.upthos.com">UPTHOS <span>Tools</span></a>
-    <a class="topnav-back" href="https://tools.upthos.com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>全部工具</a>
+    <a class="topnav-brand" href="https://box.opc.tools" target="_blank">OPC<span>ToolsBox</span></a>
+    <a class="topnav-back" href="https://box.opc.tools" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>全部工具</a>
   </nav>
 
   <div class="hero">
-    <h1>推文卡片生成器（OPC Tweet Card Studio）</h1>
-    <p>把推文做成可直接发布的图片卡片：写文案或导入你的推文库 → 选背景 → 导出 3:4 / 9:16 竖图、透明 PNG，或 3 秒动效 Live 图素材（MP4）。全部在浏览器本地完成，数据不上传。</p>
-    <p class="hero-agent">🤖 也可以让 AI Agent 直接调用：调好样式后到左下角「<a href="#agent-prompt">交给 AI Agent</a>」复制一段指令，发给 Claude Code / Codex 即可批量出图（<a href="llms.txt" target="_blank" rel="noopener">参数文档</a>）。</p>
+    <img class="hero-logo" src="logo.png" alt="OPC Tweet Card Studio" width="256" height="256" />
+    <div class="hero-text">
+      <h1>推文卡片生成器（OPC Tweet Card Studio）</h1>
+      <p>把推文做成可直接发布的图片卡片：写文案或导入你的推文库 → 选背景 → 导出 3:4 / 9:16 竖图、透明 PNG，或 3 秒动效 Live 图素材（MP4）。全部在浏览器本地完成，数据不上传。</p>
+      <p class="hero-agent">🤖 也可以让 AI Agent 直接调用：调好样式后到左下角「<a href="#agent-prompt">交给 AI Agent</a>」复制一段指令，发给 Claude Code / Codex 即可批量出图（<a href="llms.txt" target="_blank" rel="noopener">参数文档</a>）。</p>
+    </div>
   </div>
 
   <div class="workspace">
@@ -165,7 +168,7 @@
           <button class="chip" id="x-clear">清除 Key</button>
           <span class="mini-label" id="x-status"></span>
         </div>
-        <p class="mini-label">Key 只存你的浏览器本地；请求经 tools.upthos.com 无状态转发，不记录、不存储。X API 按量计费约 $0.005/条（同步 300 条 ≈ $1.5，需先在 Console 充值）；同一账号再次同步自动增量。</p>
+        <p class="mini-label">Key 只存你的浏览器本地；请求经 tools.box.opc.tools 无状态转发，不记录、不存储。X API 按量计费约 $0.005/条（同步 300 条 ≈ $1.5，需先在 Console 充值）；同一账号再次同步自动增量。</p>
       </section>
 
       <section class="control-section">
@@ -183,9 +186,9 @@
     <section class="preview-panel">
       <div class="preview-topbar">
         <span class="dot"></span><strong id="preview-label">3:4 竖图 · 1080×1440</strong>
-        <span class="drag-hint" id="drag-hint">拖动卡片调整位置 · 双击回中</span>
+        <span class="drag-hint" id="drag-hint">拖动卡片调整位置 · 双击复位</span>
         <div class="preview-actions">
-          <a id="source-link" class="ghost-btn" href="#" target="_blank" rel="noopener">查看原推 ↗</a>
+          <a id="source-link" class="ghost-btn" href="#" target="_blank" rel="noopener">查看原推</a>
           <button id="shuffle-metrics" class="ghost-btn">换一组数据</button>
           <button id="copy-text" class="ghost-btn">复制文案</button>
           <button id="copy-link" class="ghost-btn" title="复制带当前设置的链接，可分享，也可交给 AI Agent 调用">复制链接</button>
@@ -311,9 +314,9 @@
   </div>
 
   <footer class="footer">
-    <p><a href="https://tools.upthos.com">&larr; 返回工具列表</a></p>
-    <p>所有处理均在浏览器本地完成，图片与文字不会上传到任何服务器。灵感来自 <a href="https://dontbesilent-tweet-card-studio.vercel.app/" target="_blank" rel="noopener">dontbesilent</a>。</p>
-    <p>&copy; 2026 <a href="https://upthos.com" target="_blank" rel="noopener">UPTHOS</a></p>
+    <p><a href="https://box.opc.tools">&larr; 返回工具列表</a></p>
+    <p>所有处理均在浏览器本地完成，图片与文字不会上传到任何服务器。灵感来自 <a href="https://dontbesilent-tweet-card-studio.vercel.app/" target="_blank" rel="noopener">dontbesilent</a> & <a href="https://github.com/imraywang/tweet-card" target="_blank" rel="noopener">Ray Wang</a> ，感谢开源分享。</p>
+    <p>&copy; 2026 <a href="https://box.opc.tools" target="_blank" rel="noopener">OPC ToolsBox</a></p>
   </footer>
 </main>
 
