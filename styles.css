@@ -154,15 +154,20 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .ghost-btn { border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 0.42rem 0.7rem; font-size: 0.74rem; cursor: pointer; font-family: inherit; white-space: nowrap; }
 .ghost-btn:hover { background: var(--bg); }
 .ghost-btn.active { border-color: #fe2c55; color: #fe2c55; }
+/* 「查看原推」是 <a>，要抹掉链接色并对齐按钮的行高盒模型，才和旁边的按钮一致 */
+a.ghost-btn { color: var(--text); text-decoration: none; display: inline-flex; align-items: center; line-height: 1; }
+a.ghost-btn:hover { color: var(--text); }
 .primary-btn { border: 0; background: var(--accent); color: #fff; border-radius: 8px; padding: 0.48rem 1rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
 .primary-btn:hover { background: var(--accent-hover); }
 .primary-btn:disabled { opacity: 0.5; cursor: wait; }
 
 .stage-wrap { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background: repeating-conic-gradient(#efedeb 0% 25%, #f8f7f6 0% 50%) 0 0 / 24px 24px; }
-.stage { position: relative; width: 540px; height: 720px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 18px 50px rgba(28, 25, 23, 0.28); }
-.stage.tall { height: 960px; }
-.stage.tall .sg-top { top: 88px; }
+.stage { position: relative; width: 540px; height: 720px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 18px 50px rgba(28, 25, 23, 0.28); --sg-top: 75px; }
+.stage.tall { height: 960px; --sg-top: 88px; }
 .stage.tall .sg-label-top { top: 44px; }   /* tall 上安全线在 88px，标签落在上方条带中央 */
+/* 斜线容器：放在卡片之前、不设 z-index，让卡片盖住它 */
+.safe-hatch { position: absolute; inset: 0; pointer-events: none; }
+.safe-hatch.hidden { display: none; }
 .stage-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 /* 背景压暗：盖一层黑，opacity 由 renderCard() 写入。用叠层而非 filter:brightness——
    前者与导出侧 ctx.fillRect(rgba(0,0,0,a)) 是同一套 source-over 混合，预览才能和成品逐像素对齐。
@@ -172,12 +177,26 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 /* 抖音安全区参考线（画布 1080×1440，预览为 1/2 缩放）：顶部 150px、右侧 140px、底部 300px、左侧 60px */
 .safe-guides { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 .safe-guides.hidden { display: none; }
+/* 安全区外的四条边带打 45° 斜虚线，把中间的可用区衬出来。
+   用 SVG tile 而不是 repeating-linear-gradient：后者只能画连续长条纹，
+   要做成断续的短线段还得再叠一层 mask，不如一个 tile 直接画清楚。 */
+.sg-hatch {
+  position: absolute;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cline x1='-3' y1='17' x2='17' y2='-3' stroke='%23fe2c55' stroke-opacity='.85' stroke-width='1.6' stroke-dasharray='5 4'/%3E%3C/svg%3E");
+}
+.sg-hatch-top { top: 0; left: 0; right: 0; height: var(--sg-top); }
+.sg-hatch-bottom { bottom: 0; left: 0; right: 0; height: 150px; }
+.sg-hatch-left { left: 0; top: var(--sg-top); bottom: 150px; width: 30px; }
+.sg-hatch-right { right: 0; top: var(--sg-top); bottom: 150px; width: 78px; }
+/* 四条线各自只跨安全区的范围，首尾相接围成一个闭合矩形。
+   贯穿整条画布的话，四个角会各多伸出两截尾巴，和斜线交叉着很乱。 */
 .sg-line { position: absolute; }
-.sg-top { left: 0; right: 0; top: 75px; border-top: 1.5px dashed rgba(254, 44, 85, 0.85); }
-.sg-right { top: 0; bottom: 0; right: 78px; border-right: 1.5px dashed rgba(254, 44, 85, 0.85); }
-.sg-bottom { left: 0; right: 0; bottom: 150px; border-bottom: 1.5px dashed rgba(254, 44, 85, 0.85); }
-.sg-left { top: 0; bottom: 0; left: 30px; border-left: 1.5px dashed rgba(254, 44, 85, 0.6); }
-.sg-label { position: absolute; font-size: 13px; line-height: 1; padding: 3px 6px; color: #fe2c55d9; white-space: nowrap; border: 1px dashed #fe2c55d9; border-radius: 8px; background: transparent; }
+.sg-top { left: 30px; right: 78px; top: var(--sg-top); border-top: 1.5px dashed rgba(254, 44, 85, 0.85); }
+.sg-right { top: var(--sg-top); bottom: 150px; right: 78px; border-right: 1.5px dashed rgba(254, 44, 85, 0.85); }
+.sg-bottom { left: 30px; right: 78px; bottom: 150px; border-bottom: 1.5px dashed rgba(254, 44, 85, 0.85); }
+.sg-left { top: var(--sg-top); bottom: 150px; left: 30px; border-left: 1.5px dashed rgba(254, 44, 85, 0.6); }
+/* 底色是必须的：标签落在斜线区里，透明底会让斜线穿过文字 */
+.sg-label { position: absolute; font-size: 13px; font-weight: 600; letter-spacing: 2px; line-height: 1; padding: 4px 8px; color: #fe2c55d9; white-space: nowrap; border: 1px dashed #fe2c55d9; border-radius: 8px; background: rgba(255, 255, 255, 0.94); }
 /* 标签放在各自安全区「外侧」条带的正中间，不压在卡片上。
    顶部/底部条带跨满画布宽，所以水平居中即可；
    右侧条带的高度是「安全区上下线之间」，不是整个画布，

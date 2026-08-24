@@ -432,6 +432,7 @@ function renderCard() {
 
   // 安全区参考线只在竖图模式且开关打开时显示
   $("safe-guides").classList.toggle("hidden", !isFrame || !state.guidesOn);
+  $("safe-hatch").classList.toggle("hidden", !isFrame || !state.guidesOn);
   $("guides-option").classList.toggle("hidden", !isFrame);   // 纯卡片没有画布，参考线无意义
   $("live-btn").style.display = isFrame ? "" : "none";
   $("dim-option").style.display = isFrame ? "" : "none"; // 纯卡片没背景可压

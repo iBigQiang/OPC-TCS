@@ -185,7 +185,7 @@
         <span class="dot"></span><strong id="preview-label">3:4 竖图 · 1080×1440</strong>
         <span class="drag-hint" id="drag-hint">拖动卡片调整位置 · 双击回中</span>
         <div class="preview-actions">
-          <a id="source-link" href="#" target="_blank" rel="noopener">查看原推 ↗</a>
+          <a id="source-link" class="ghost-btn" href="#" target="_blank" rel="noopener">查看原推 ↗</a>
           <button id="shuffle-metrics" class="ghost-btn">换一组数据</button>
           <button id="copy-text" class="ghost-btn">复制文案</button>
           <button id="copy-link" class="ghost-btn" title="复制带当前设置的链接，可分享，也可交给 AI Agent 调用">复制链接</button>
@@ -199,6 +199,14 @@
           <img class="stage-bg" id="stage-bg" alt="" />
           <!-- 背景压暗：叠黑层而非 filter:brightness——opacity 混合与导出侧 fillRect 是同一套数学，预览才能和成品对齐 -->
           <div class="stage-dim" id="stage-dim"></div>
+          <!-- 安全区外的四条边带打斜线。刻意放在卡片之前、独立于 .safe-guides：
+               .safe-guides 有 z-index:5 会压在卡片上，斜线跟着压上去就糊住卡片了 -->
+          <div class="safe-hatch" id="safe-hatch">
+            <div class="sg-hatch sg-hatch-top"></div>
+            <div class="sg-hatch sg-hatch-bottom"></div>
+            <div class="sg-hatch sg-hatch-left"></div>
+            <div class="sg-hatch sg-hatch-right"></div>
+          </div>
           <!-- 抖音安全区参考线：仅预览显示，导出时自动排除 -->
           <div class="safe-guides" id="safe-guides">
             <div class="sg-line sg-top"></div>
