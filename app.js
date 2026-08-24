@@ -14,6 +14,11 @@ const DEFAULT_PROFILE = { name: "你的名字", handle: "yourname", avatar: "ava
 const DEFAULT_CARD_X = -20;
 const DEFAULT_CARD_Y = -37;
 
+/* 背景网格的折叠节奏：首屏 5 列 × 8 行，之后每次多展开 4 行。
+   和 DEFAULT_CARD_* 同理必须定义在 state 之前——state 初值引用它，写在后面会命中 TDZ。 */
+const BG_INITIAL = 40;
+const BG_PAGE = 20;
+
 const state = {
   profile: { ...DEFAULT_PROFILE },
   posts: [],
@@ -48,6 +53,9 @@ const state = {
   fakeMetrics: null,     // 卡片上显示的随机互动数据
   dateOverride: "",      // URL 参数指定的日期
   backgrounds: [],       // manifest 内容，供 bg 参数解析
+  bgQuery: "",           // 背景搜索词，匹配 name + keywords
+  bgVisible: BG_INITIAL, // 内置背景当前展开到第几张
+  customBgs: [],         // 用户上传/贴 URL 的背景（dataURL）；不参与搜索与折叠计数
 };
 
 const LIST_CAP = 200;
@@ -579,36 +587,85 @@ function initDrag() {
 
 /* ---------- 背景 ---------- */
 
+function filteredBackgrounds() {
+  const q = state.bgQuery.trim().toLowerCase();
+  if (!q) return state.backgrounds;
+  return state.backgrounds.filter(
+    (b) => (b.name || "").toLowerCase().includes(q) || (b.keywords || "").toLowerCase().includes(q)
+  );
+}
+
+function bgThumb(src, name) {
+  const btn = document.createElement("button");
+  btn.className = "bg-thumb" + (state.bg === src ? " active" : "");
+  btn.title = name;
+  /* 逐个建元素而不是拼 innerHTML：自定义背景的 src 是 dataURL，它的 MIME 段来自
+     bg-url 拉取到的远端 Content-Type（外部可控），拼进 src="${...}" 属性里
+     理论上能靠一个引号逃出属性。与 renderList() 用 textContent 放推文同一个道理。 */
+  const img = document.createElement("img");
+  img.src = src;                 // 反射属性，getAttribute("src") 仍拿到原始字符串，setBg() 的比对不受影响
+  img.alt = name;
+  // lazy + async：152 张缩略图一次性解码会卡住主线程，且折叠区的图根本不该占带宽
+  img.loading = "lazy";
+  img.decoding = "async";
+  const label = document.createElement("span");
+  label.className = "bg-name";
+  label.textContent = name;
+  btn.append(img, label);
+  btn.onclick = () => setBg(src);
+  return btn;
+}
+
+/* 幂等全量重渲染：搜索、展开、上传都只改 state 再调它。
+   注意这里不再兼「设默认背景」的副作用——那件事在 init() 里做一次，
+   否则每次搜索/展开都会把用户选的背景重置掉。 */
 function renderBackgroundGrid() {
   const grid = $("bg-grid");
-  state.backgrounds.forEach((item, i) => {
-    const btn = document.createElement("button");
-    btn.className = "bg-thumb";
-    btn.title = item.name;
-    btn.innerHTML = `<img src="backgrounds/${item.file}" alt="${item.name}" />`;
-    btn.onclick = () => setBg("backgrounds/" + item.file, btn);
-    grid.appendChild(btn);
-    // 已由 URL 参数指定背景时不要覆盖
-    if (state.bg === "backgrounds/" + item.file) btn.classList.add("active");
-    else if (i === 0 && !state.bg) setBg("backgrounds/" + item.file, btn);
+  const list = filteredBackgrounds();
+  /* 自定义图排在最前，并和内置图共用同一份格子预算。不共用的话上传一张，
+     首屏就变 41 格、第 9 行冒出一个孤格，破坏「5 列 × 8 行」。 */
+  const custom = state.customBgs.length;
+
+  /* 选中项必须落在可见范围内：折叠一重置（搜索、换词、清空）就会把靠后的选中项藏起来，
+     用户随即失去「我现在用的是哪张」的锚点。展开到覆盖它的那一页，
+     并写回 state——只在局部变量里放大的话，下次点「查看更多」会从 40 起算反而变少。
+     选中的是自定义图时 idx 为 -1，无需展开：它永远排在最前。 */
+  const idx = list.findIndex((b) => "backgrounds/" + b.file === state.bg);
+  if (idx >= 0 && idx + custom >= state.bgVisible) {
+    state.bgVisible = Math.ceil((idx + custom + 1) / BG_PAGE) * BG_PAGE;
+  }
+
+  const shown = list.slice(0, Math.max(0, state.bgVisible - custom));
+
+  grid.textContent = "";
+  state.customBgs.forEach((src, i) => grid.appendChild(bgThumb(src, `自定义 ${i + 1}`)));
+  shown.forEach((item) => grid.appendChild(bgThumb("backgrounds/" + item.file, item.name)));
+
+  // 分母含自定义图，否则文案与网格里实际的格子数对不上
+  $("bg-count").textContent = `当前显示 ${custom + shown.length} / ${custom + list.length} 张`;
+  const more = $("bg-more");
+  const rest = list.length - shown.length;
+  more.hidden = rest <= 0;
+  more.textContent = `查看更多背景（还有 ${rest} 张）`;
+}
+
+function setBg(src) {
+  state.bg = src;
+  $("stage-bg").src = src;
+  // active 由 state.bg 驱动、渲染时比对 src：靠传进来的 DOM 元素打标记的话，
+  // 一次重渲染元素就被销毁了，选中态跟着丢。
+  document.querySelectorAll(".bg-thumb").forEach((b) => {
+    const img = b.querySelector("img");
+    b.classList.toggle("active", !!img && img.getAttribute("src") === src);
   });
 }
 
-function setBg(src, thumbEl) {
-  state.bg = src;
-  $("stage-bg").src = src;
-  document.querySelectorAll(".bg-thumb").forEach((b) => b.classList.remove("active"));
-  if (thumbEl) thumbEl.classList.add("active");
-}
-
 function addCustomThumb(dataUrl) {
-  const grid = $("bg-grid");
-  const btn = document.createElement("button");
-  btn.className = "bg-thumb";
-  btn.innerHTML = `<img src="${dataUrl}" alt="自定义背景" />`;
-  btn.onclick = () => setBg(dataUrl, btn);
-  grid.appendChild(btn);
-  setBg(dataUrl, btn);
+  state.customBgs.push(dataUrl);
+  // 先 setBg 再重渲染：state.bg 已是新值，网格建元素时一次就把 active 打对，
+  // 不用渲染完再回头改一遍 DOM
+  setBg(dataUrl);
+  renderBackgroundGrid();
 }
 
 /* ---------- 移动端适配与成品交付 ---------- */
@@ -1214,6 +1271,17 @@ function bind() {
     refreshAgentPrompt();
   };
 
+  $("bg-search").oninput = (e) => {
+    state.bgQuery = e.target.value;
+    state.bgVisible = BG_INITIAL;   // 换搜索词就收回折叠，否则搜完还是一屏几百张
+    renderBackgroundGrid();
+  };
+
+  $("bg-more").onclick = () => {
+    state.bgVisible += BG_PAGE;
+    renderBackgroundGrid();
+  };
+
   $("bg-upload").onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1399,10 +1467,16 @@ async function fetchAsDataUrl(url) {
   } catch { return null; }
 }
 
+/* 背景库编号化（photo-xxx → bj_n-xxx）之前发出去的分享链接带的是老 slug，
+   剥掉两种前缀再比一次就能救回来，比维护一张映射表便宜得多。 */
+const bgSlug = (s) => s.replace(/\.(jpg|jpeg|png|svg)$/i, "").replace(/^(photo-|bj_\d+-)/, "");
+
 async function resolveBgParam(v) {
   if (!v) return null;
   if (/^https?:\/\//i.test(v)) return await fetchAsDataUrl(v);
-  const hit = state.backgrounds.find((b) => b.file === v || b.file.replace(/\.(jpg|jpeg|png|svg)$/, "") === v || b.name === v);
+  const hit = state.backgrounds.find(
+    (b) => b.file === v || b.file.replace(/\.(jpg|jpeg|png|svg)$/, "") === v || b.name === v || bgSlug(b.file) === bgSlug(v)
+  );
   return hit ? "backgrounds/" + hit.file : null;
 }
 
@@ -1442,7 +1516,9 @@ async function applyUrlParams() {
   }
 
   const bg = await resolveBgParam(q.get("bg"));
-  if (bg) { state.bg = bg; $("stage-bg").src = bg; }
+  // 走 setBg 而不是自己赋 state.bg + 改 src：那是它的两行内联复制。
+  // 此刻网格还没渲染，setBg 里的 active 遍历是空操作，无副作用。
+  if (bg) setBg(bg);
 
   return q.get("embed") === "1";
 }
@@ -1539,6 +1615,10 @@ async function init() {
   rollMetrics();
 
   const embed = await applyUrlParams();
+
+  // 默认背景取清单第一条。URL 参数已指定时不覆盖。
+  // 这件事以前藏在 renderBackgroundGrid() 里，网格改成会反复重渲染后必须挪出来。
+  if (!state.bg && state.backgrounds.length) setBg("backgrounds/" + state.backgrounds[0].file);
 
   refreshLibrary();
   bind();

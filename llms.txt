@@ -25,7 +25,7 @@
 示例（Playwright / Node）:
 
 ```js
-await page.goto('<你的部署地址>/tweet-card?embed=1&text=' + encodeURIComponent('这是一条推文') + '&bg=photo-forest-path&mode=tall');
+await page.goto('<你的部署地址>/tweet-card?embed=1&text=' + encodeURIComponent('这是一条推文') + '&bg=bj_11-forest-path&mode=tall');
 await page.waitForFunction(() => document.documentElement.dataset.ready);
 const dataUrl = await page.evaluate(() => window.__cardDataUrl);
 require('fs').writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base64'));
@@ -57,15 +57,22 @@ require('fs').writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base
 背景
 - `bg` — 内置背景的 slug，或任意图片 URL（需允许跨域访问）
 
-  内置照片: `photo-misty-marsh` `photo-forest-coast` `photo-pebble-beach` `photo-rocky-bay`
-  `photo-snow-peaks` `photo-dusk-forest` `photo-flower-dusk` `photo-golden-field`
-  `photo-desert-dusk` `photo-forest-path` `photo-lighthouse` `photo-white-town`
-  `photo-canal-town` `photo-city-bridge-night` `photo-london-night` `photo-foggy-street`
-  `photo-far-city-lights` `photo-city-rooftops` `photo-city-crosswalk` `photo-old-town-door`
-  `photo-concrete-block` `photo-vintage-cars` `photo-cafe-silhouette`
+  图库共 152 张：照片 `bj_1` – `bj_142`，渐变 `bj_143` – `bj_152`。
+  **完整清单（文件名 + 中文名 + 搜索关键词）见 `<你的部署地址>/backgrounds/manifest.json`**，
+  想按内容挑图请读它，比在这里列 152 个 slug 实用。
 
-  内置渐变: `ink-dawn` `deep-forest` `ember` `harbor` `violet-night`
-  `slate` `plum-smoke` `midnight` `paper-warm` `mist`
+  slug 可写全名 `bj_11-forest-path`、带扩展名 `bj_11-forest-path.jpg`、
+  中文名 `林间小路 011`，也可省掉编号前缀写 `forest-path`（旧版链接的 `photo-forest-path` 同样有效）。
+
+  常用照片: `bj_1-ibigqiang`（默认背景）`bj_2-misty-marsh` `bj_6-snow-peaks`
+  `bj_11-forest-path` `bj_16-london-night` `bj_19-city-rooftops` `bj_24-cafe-silhouette`
+  `bj_25-misty-valley` `bj_29-skyline` `bj_31-coast-road`
+
+  旅行素材: `bj_33-travel-001` … `bj_142-travel-110`（110 张，风景/城市/山海/汽车）
+
+  内置渐变: `bj_143-ink-dawn` `bj_144-deep-forest` `bj_145-ember` `bj_146-harbor`
+  `bj_147-violet-night` `bj_148-slate` `bj_149-plum-smoke` `bj_150-midnight`
+  `bj_151-paper-warm` `bj_152-mist`
 
 互动数据（卡片底部的回复/转发/点赞/收藏/浏览数字，默认随机生成）
 - `metrics=off` — 完全隐藏这一行
@@ -80,7 +87,7 @@ require('fs').writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base
 深色卡片 + 城市夜景 + 9:16 + 指定数据:
 
 ```
-<你的部署地址>/tweet-card?embed=1&text=%E8%AF%B4%E4%B8%AA%E6%9A%B4%E8%AE%BA&name=Ray%20Wang&handle=wangray&mode=tall&theme=dark&bg=photo-london-night&likes=5309&views=160000
+<你的部署地址>/tweet-card?embed=1&text=%E8%AF%B4%E4%B8%AA%E6%9A%B4%E8%AE%BA&name=Ray%20Wang&handle=wangray&mode=tall&theme=dark&bg=bj_16-london-night&likes=5309&views=160000
 ```
 
 ### 说明

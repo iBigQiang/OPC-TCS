@@ -22,8 +22,11 @@ npx wrangler pages dev .
 # 重建推文库：data/raw/page-*.json（X API 原始返回）→ posts.json
 python3 scripts/build_posts.py
 
-# 重建背景：写 10 个渐变 SVG + 生成 backgrounds/manifest.json
+# 重建背景：写 10 个渐变 SVG + 生成 backgrounds/manifest.json（清单唯一来源）
 python3 scripts/gen_backgrounds.py
+
+# 一次性素材脚本：从参考站补下 118 张图库（幂等，已存在的跳过）。图片已全部入库，平时不用跑
+python3 scripts/fetch_backgrounds.py
 
 # 部署（Cloudflare Pages，项目名 opc-tweet-card-studio）
 # 不要直接 deploy . —— wrangler 上传的是文件系统内容，不看 .gitignore，
@@ -161,6 +164,22 @@ localStorage keys：`tcs-profile` / `tcs-posts` / `tcs-xkey` / `tcs-xsync` / `tc
 ### 背景库是生成物
 
 `backgrounds/manifest.json` 由 `gen_backgrounds.py` 生成，**手改会被下次重跑覆盖**。加照片的正确姿势：图片丢进 `backgrounds/` → 在脚本的 `PHOTOS` 列表加一行 → 重跑脚本（脚本只收录实际存在的文件）。渐变改 `PALETTES`。
+
+152 项：照片 `bj_1`–`bj_142`、渐变 SVG `bj_143`–`bj_152`。文件名格式 `bj_<n>-<slug>.<ext>`，manifest 每条三字段 `file` / `name`（中文名 + 三位序号）/ `keywords`（搜索用，空格分隔）。
+
+三条容易踩的：
+
+- **序号写死在文件名里，`name` 的三位序号由 `numbered()` 从文件名解析**——两处各写一遍迟早不一致。序号也绝不按列表位置计算：往中间插一张图不该导致后面全部改名，新图直接取下一个未用序号接在末尾。渐变段的起点 `SVG_BASE` 从 `PHOTOS` 的最大序号派生，别改回手写常量：一套编号只允许一个手写起点，两端都手写就等着它们错开。`check_numbers()` 拦的正是这个——撞号不会崩，只会静默产出两个同名条目（比如两个「旅行素材 143」），前端搜索和分享链接跟着一起错。
+- **`.gitignore` 里有 `bg_*.jpg`**（无斜杠 = 匹配任意层级）。前缀是 `bj_` 不是 `bg_`，**一字之差会让整个图库被 git 静默忽略、部署后全部 404**。批量加图后跑一次 `git check-ignore backgrounds/bj_*.jpg` 确认为空。
+- **`keywords` 别写太宽**。参考站给 110 张 travel 全写了「旅行 城市 山海 雪景 汽车 风景 建筑」，搜「城市」会命中全部 110 张、把真正叫「城市屋顶」的淹掉。本项目那批只写「旅行 素材」。
+
+前端网格（`renderBackgroundGrid()`）是幂等全量重渲染，搜索/展开/上传都只改 state 再调它。所以两件事**不能**放在渲染里：设默认背景（在 `init()` 里做一次，否则每次搜索都重置用户选择）、`active` 标记（由 `state.bg` 比对 src 得出，靠 DOM 元素传引用的话一次重渲染就丢）。折叠常量 `BG_INITIAL` / `BG_PAGE` 和 `DEFAULT_CARD_*` 同理必须定义在 `state` 之前，state 初值引用它。选中项若被折叠挡住会自动展开到覆盖它那一页并写回 `state.bgVisible`——只放大局部变量的话，下次点「查看更多」会从 40 起算反而变少。
+
+**自定义上传图（`state.customBgs`）排在最前，并和内置图共用同一份格子预算**（`shown = list.slice(0, bgVisible - custom)`），`bg-count` 的分子分母也都含它。不共用的话上传一张首屏就变 41 格、第 9 行冒出一个孤格，「5 列 × 8 行」当场破掉。它只是不参与搜索匹配——搜任何词自定义图都还在。
+
+`bgThumb()` 逐个 `createElement` 而不是拼 `innerHTML`：自定义背景的 src 是 dataURL，MIME 段来自「粘贴图片 URL」拉到的远端 `Content-Type`（外部可控），拼进 `src="${...}"` 理论上能靠一个引号逃出属性。注意 `img.src = x` 之后 `getAttribute("src")` 仍返回原始字符串（`.src` 返回绝对化 URL），所以 `setBg()` 的比对必须继续用 `getAttribute`。
+
+`resolveBgParam()` 的匹配剥掉 `^(photo-|bj_\d+-)` 前缀，所以编号化之前发出去的分享链接（`?bg=photo-forest-path`、`?bg=ink-dawn`）仍然有效。
 
 ## 约定
 

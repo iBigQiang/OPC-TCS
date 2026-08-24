@@ -303,7 +303,10 @@
 
       <section class="control-section" id="bg-section">
         <div class="section-heading"><span>02</span><div><h2>背景</h2><p>内置图库，也可上传图片或贴 URL</p></div></div>
+        <input id="bg-search" class="bg-search" type="search" placeholder="搜背景：城市、夜景、旅行、咖啡…" />
+        <div class="bg-count" id="bg-count"></div>
         <div class="bg-grid" id="bg-grid"></div>
+        <button class="ghost-btn bg-more" id="bg-more" type="button" hidden>查看更多背景</button>
         <div class="bg-import">
           <label class="chip file-chip">上传图片<input id="bg-upload" type="file" accept="image/*" hidden /></label>
           <input id="bg-url" type="url" placeholder="或粘贴图片 URL 后回车" />

@@ -57,20 +57,20 @@ python3 -m http.server 8798
 - **卡片样式**：白/黑主题、直角卡片、整体等比缩放（50%–140%，不改变排版换行）、透明度（30%–100%，文字不透）
 - **自由构图**：竖图模式下卡片可拖到画框任意位置（出框裁切），双击回中；超长推文自动缩放适配
 - **互动数据**：随机生成的好看数字（按真实比例区间派生），一键换一组，可隐藏
-- **背景**：13 张风景照 + 10 张城市街景 + 10 张渐变（内置），支持本地上传和图片 URL
+- **背景**：内置 152 张（142 张照片 + 10 个渐变），带中文名、关键词搜索与分批展开，也支持本地上传和图片 URL
 - **导出**：html-to-image（DOM → SVG foreignObject → canvas）所见即所得，一键复制文案
 
 ## 给 AI Agent 调用
 
 页面支持 URL 参数直接出图，任何带浏览器能力的 Agent（Claude Code、Codex、Playwright、浏览器 MCP…）都能调用，无需 API Key、无服务端：
 
-1. 打开 `https://tools.upthos.com/tweet-card?embed=1&text=<文字>&bg=photo-forest-path&mode=tall`
+1. 打开 `https://tools.upthos.com/tweet-card?embed=1&text=<文字>&bg=bj_11-forest-path&mode=tall`
 2. 等待 `document.documentElement.dataset.ready === "1"`
 3. 读 `window.__cardDataUrl`，得到 `data:image/png;base64,...`，解码写文件即可
 
 ```js
 // Playwright 示例
-await page.goto('https://tools.upthos.com/tweet-card?embed=1&text=' + encodeURIComponent('这是一条推文') + '&bg=photo-london-night&mode=tall&theme=dark');
+await page.goto('https://tools.upthos.com/tweet-card?embed=1&text=' + encodeURIComponent('这是一条推文') + '&bg=bj_16-london-night&mode=tall&theme=dark');
 await page.waitForFunction(() => document.documentElement.dataset.ready);
 const dataUrl = await page.evaluate(() => window.__cardDataUrl);
 fs.writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base64'));
@@ -106,7 +106,7 @@ npx vercel deploy   # 或 Netlify / GitHub Pages / Cloudflare Pages
 
 ## 自定义
 
-- **背景**：图片丢进 `backgrounds/`，在 `scripts/gen_backgrounds.py` 的 `PHOTOS` 列表加一行，重跑脚本（内置照片来自 [Lorem Picsum](https://picsum.photos/)，Unsplash 授权）
+- **背景**：图片丢进 `backgrounds/`，在 `scripts/gen_backgrounds.py` 的 `PHOTOS` 列表加一行（文件名带 `bj_<下一个未用序号>-` 前缀，第三项是搜索关键词），重跑脚本
 - **自动分类关键词**：`scripts/build_posts.py` 里的 `TOPIC_RULES`
 - **卡片样式**：`styles.css` 的 `.tweet-card` 一节
 

@@ -1,76 +1,97 @@
-# 当前迭代：抓取增强（入库门禁 / 真实互动数据 / 图片入卡）—— 已完成
+# 当前迭代：背景图库扩容 + 网格改造 —— 已完成
 
-**方案文档**：[抓取增强方案](../docs/开发及迭代方案调研报告/2026-08-23-抓取增强方案.md)
-**关联调研**：[CORS 方案调研](../docs/开发及迭代方案调研报告/2026-08-23-CORS方案调研.md)
+**方案文档**：[背景图库扩容方案](../docs/开发及迭代方案调研报告/2026-08-24-背景图库扩容方案.md)
+
+目标：背景库 34 项 → 152 项，全部按 `bj_n-` 编号；缩略图加名称浮动条；网格改折叠展开 + 关键词搜索。
 
 ## 检查项
 
-### 1. CORS 调研（只出文档）
-- [x] 读 feedgrab-x 源码确认框架与现状（FastAPI，无 CORS 中间件）
-- [x] 写调研文档：技术可行但不建议，中转层保留
+### 1. 素材入库
+- [x] `scripts/fetch_backgrounds.py`：下载源站 118 张 + 压缩 + 按编号命名（幂等）
+- [x] `photo-ibigqiang.png` → `bj_1-ibigqiang.jpg`（PNG 转 JPG，删源 PNG）
+- [x] 现有 23 张 `photo-*.jpg` → `bj_2..24-*.jpg`（`git mv`，不重编码）
+- [x] 删除 `photo-wuyanzu.jpg`
+- [x] 确认所有图未被 `.gitignore` 的 `bg_*.jpg` 误伤（前缀是 `bj_`）
 
-### 2. 入库门禁
-- [x] Function 加 `X-Admin-Password` 校验，响应注入 `_canSave` / `_adminRequired`
-- [x] 设置区加「管理入库密码」，存进 `tcs-importer`
-- [x] 前端按 `_canSave` 分流（入库 / 仅上卡）
-- [x] 保存后自动收起设置面板
-- [x] 补「导出推文库 JSON」按钮
+### 2. manifest 与生成脚本
+- [x] `gen_backgrounds.py` 的 `PHOTOS` 改三元组（文件名 / 中文名带序号 / 关键词）
+- [x] 110 条 travel 用列表推导生成，关键词写「旅行 素材」
+- [x] 渐变 SVG 加 `bj_143..152-` 前缀，名称带序号
+- [x] manifest 输出 `file` / `name` / `keywords` 三字段
+- [x] 重跑脚本，确认报 152 backgrounds 且中文不乱码
 
-### 3. 真实互动数据
-- [x] `hasRealMetrics()` / `applyMetricsFor()`
-- [x] `state.metricsIsReal` 标记
-- [x] 「换一组数据」语义改为主动切随机
+### 3. app.js
+- [x] 拆耦合：设默认背景从 `renderBackgroundGrid()` 移到 `init()`
+- [x] 拆耦合：`setBg()` 的 `active` 改由 `state.bg` 驱动
+- [x] state 加 `bgQuery` / `bgVisible` / `customBgs`，常量 `BG_INITIAL` / `BG_PAGE`
+- [x] `filteredBackgrounds()` 按 name + keywords 过滤
+- [x] `renderBackgroundGrid()` 重写：自定义图 → 过滤结果前 N 张 → 计数 → 更多按钮
+- [x] 缩略图加 `<span class="bg-name">` 与 `loading="lazy" decoding="async"`
+- [x] `addCustomThumb()` 改走 `state.customBgs`
+- [x] `resolveBgParam()` 加剥前缀的宽松匹配（救旧链接）
+- [x] 追加：选中项落在折叠区外时自动展开到覆盖它那一页（验证时发现的缺陷）
 
-### 4. 图片入卡
-- [x] `mapImportedPost()` 取主推文 images/videos，正文清 t.co
-- [x] `post.media = { image, video }`，`normalizePosts()` 保留该字段
-- [x] `#tc-media` + `crossorigin="anonymous"` + X 原生样式
-- [x] `mediaReady()`，导出与 embed 前等待图片
-- [x] `measureFitScale()` 双基准（有图按安全区）
-- [x] 图片加载后重测 fitScale
-- [x] 右栏「推文配图」开关，仅有图时显示
-- [x] URL 参数 `img` / `media=off`（三处同步）
+### 4. index.html / styles.css
+- [x] 背景区插搜索框 + 计数行 + 「查看更多背景」按钮
+- [x] `.bg-name` 底部浮动条样式
+- [x] 「查看更多」沿用 `ghost-btn` 盒模型，不引入新按钮高度
 
 ### 5. 文档
-- [x] CLAUDE.md：真实数据优先、配图三要点、fitScale 双基准
-- [x] README / llms.txt：新参数与推文库格式
-- [x] 界面上的推文库格式说明补 datetime / media
+- [x] `llms.txt` 两处 slug 示例 + `bg` 参数说明（验 UTF-8 编码）
+- [x] `CLAUDE.md` 背景库一节：编号规则、keywords、`bj_`/`bg_` 陷阱
+- [x] `README.md` 背景数量
+- [x] `docs/DEVLOG.md` 顶部加本轮条目
+- [x] `tasks/lessons.md` 补教训（4 条）
 
 ### 6. 验证
-- [x] Function 门禁两条路径
-- [x] 真实数据 / 换一组数据
-- [x] 设置面板收起与展开
-- [x] 密码错误不入库、密码正确入库
-- [x] 正文 t.co 清除、配图显示
-- [x] 安全区约束（上下各余 11px / 10px）
-- [x] 带图导出三条管线全部 `err=null`
-- [x] 控制台 0 error
-- [x] 更新 DEVLOG
+- [x] 首屏 40 张 / 点 6 次到 152 / 按钮消失
+- [x] 搜索命中正确、计数同步、折叠重置、清空恢复
+- [x] 默认背景是 `bj_1-ibigqiang.jpg`
+- [x] 选图 → 搜索 → 清空，选中态不丢
+- [x] 上传自定义背景 → 搜索后仍在且仍选中
+- [x] 旧 slug `?bg=photo-forest-path` 与新 slug 都能出图
+- [x] 三条导出管线 `err=null`，控制台 0 error
+- [x] `manifest.json` 浏览器侧读取中文不乱码
+
+### 7. `/code-review high` 两轴审查后的加固
+- [x] 自定义图与内置图共用格子预算 + `bg-count` 分子分母含它（两轴独立发现，需求「5×8」被破坏）
+- [x] `bgThumb()` 去 `innerHTML`，改逐个 `createElement` + `textContent`
+- [x] placeholder 换成实测有命中的词（原「山海」零命中）
+- [x] `fetch_one()` 改 `.part` + `os.replace` 原子写入，兑现 docstring 的幂等承诺
+- [x] `SVG_BASE` 改从 `PHOTOS` 派生 + `check_numbers()` 编号断言（实测能拦住撞号）
+- [x] 消掉 `addCustomThumb()` 的两步空转与 `applyUrlParams()` 的 `setBg()` 内联复制
+- [x] `fetch_backgrounds.py` docstring 如实改写（原来把「职责不重叠」说过头了）
+- [x] `.sg-label` 不对称 padding 补注释（先编了个字形理由，实测不成立后改成如实记录）
+- [x] `.gitignore` 加 `__pycache__/`
+- [x] 复验：脚本报 152、断言生效、首屏 40 格、加自定义仍 120/153、三条管线 `err=null`、0 console error
 
 ## 复盘
 
-### 澄清比实现更重要的一次
+### 结果
 
-需求说「防止推文库被低质量数据污染」，但推文库在 localStorage，每个访客各自独立，这个污染路径根本不存在。如果不先核对就直接做密码，会交付一个解决了不存在问题的功能，还让人误以为数据安全了。
+背景库 34 → 152 项（142 张照片 + 10 个渐变 SVG），`backgrounds/` 22.7 MB。新增 118 张下载 17.9 MB，0 失败 0 跳过。前端首屏 40 张、每次 +20、关键词搜索、名称浮动条全部按方案落地，8 项浏览器验证全通过，控制台 0 error 0 warning。
 
-先说清事实、再给「密码作流程门槛 + 导出 JSON 作真正沉淀路径」的组合，才是对需求的正确回应。
+### 判断对了的地方
 
-### 需求里说「已经缺的」东西可能早就有
+**两个脚本严格分职责**。`fetch_backgrounds.py` 只管「源 slug → 目标文件名」，中文名与关键词只写在 `gen_backgrounds.py`。两边不重叠，就不存在「改了一份忘了另一份」的漂移风险——项目里 `cleanApiText()` / `clean_text()` 那对双胞胎就是反例，CLAUDE.md 至今得专门写一句「改一个必须改另一个」。
 
-「需要修改推文库数据文件格式，让他带上互动数据和发布时间字段」——实测 `posts.json` 836 条全部已有 `metrics` 和 `datetime`。真正的问题在渲染层用随机值覆盖了真实值。
+**关键词刻意收窄**。110 张 travel 只写「旅行 素材」，没照搬源站那串七个词。实测搜「城市」命中 9 张全是城市类；照搬的话会命中 119 张，搜索功能等于白做。
 
-**动手改数据格式前先抽样看真实数据**，省掉一次无谓的迁移。
+**先拆耦合再加功能**。改造前专门通读了 `renderBackgroundGrid()` 和 `setBg()`，把两个依赖「只渲染一次」的隐藏假设先移走。这两处都不会报错，只会静默功能退化，如果边加功能边发现，排查成本会高得多。
 
-### 跨域图片进 canvas 的前置验证
+### 走过的弯路
 
-`crossorigin="anonymous"` + 服务端回 CORS 头 = canvas 不被污染。这个必须在写渲染代码前实测，否则等到导出阶段才发现 `SecurityError`，图片方案要整个推翻（退化成经 Function 代理转 dataURL）。
+**`numbered()` 的正则连栽两次**。第一版把整个表达式塞进 f-string：raw string 里的 `\\d` 是字面反斜杠+d（匹配不到），f-string 里含反斜杠在 3.12 前还是语法错误。提到模块级 `NUM_RE` 编译一次就干净了——顺带说明「一行写完」不等于更好。
 
-验证方法：加载图片 → `drawImage` → `toDataURL()`，能出结果就是没污染。
+**体积估算给早了**。规划时口头说「压缩后 8–12 MB」，实测 17.9 MB。原因是源图已经压得很紧。教训写进 lessons：给具体数字前先跑样本，别凭直觉。
+
+**统计口径把自己骗了一次**。用 PowerShell `-like '??*'` 统计未跟踪文件，`?` 是通配符，匹配了所有行，一度以为 23 次 `git mv` 没被识别。
+
+### 决策变更
+
+方案里定的是「直接重命名，不管旧链接」，理由是不想维护 23 条映射表。实施时发现 `resolveBgParam()` 加一行剥前缀的正则就能全部覆盖，成本远低于映射表，所以顺手做掉了。五种写法（旧 slug / 新 slug / 带扩展名 / 中文名 / 旧 SVG slug）实测全部命中。
 
 ### 遗留
 
-- ~~线上要配 `IMPORT_ADMIN_PASSWORD`~~ 已配（Secret，生产环境），部署 `045e0215` 后生效
-- ~~抓取后切到「自由编辑」时卡片日期显示今天~~ 已修（`currentDate()`，且 `buildShareUrl()` 补上了从不写入的 `date` 参数）
-- 视频只存 URL 不播放，卡片用封面图
-- 单列（<980）下背景缩略图网格铺满时偏大
-- tall 模式下卡片底部仍余约 11px（预览 px）：安全区中心在画布中心上方 31px，而默认 `cardY = -37`，差 6px。要完全贴合需改默认 `cardY`，会影响历史分享链接，暂不动
+- 源站 118 张多为 960×1280，用于 `tall`(1080×1920) 导出要放大 1.5 倍。背景压暗 10% 且大半被卡片盖住，可接受，但这批图本身不是为 9:16 准备的。将来若要更清晰只能换源，不能靠重新压缩。
+- 110 张 travel 沿用批量名「旅行素材 NNN」，搜索上不可细分。若以后要按内容检索，需要逐张打标（可考虑视觉模型批量生成关键词）。
