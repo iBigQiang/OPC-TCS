@@ -117,6 +117,14 @@ localStorage keys：`tcs-profile` / `tcs-posts` / `tcs-xkey` / `tcs-xsync` / `tc
 
 `fitScale` 有两套基准：**有配图时按安全区可用高度**（poster 495 / tall 722），纯文字沿用 `stage.clientHeight * 0.92`。后者不能改——改了所有历史分享链接的出图都会突然变小。安全区垂直中心比画布中心高 37.5px，正好对应默认 `cardY = -37`。
 
+配图布局是三档（`layoutMedia()`），**绝不用居中裁切**（会把图片头尾都切掉）：
+
+1. 全宽放得下 → 原样完整显示
+2. 放不下但等比缩小后不至于太窄（≥ 卡片宽的 55%）→ 加 `.fit`，等比缩小、宽度自动收窄，图片仍完整
+3. 缩完太窄 → 加 `.crop`，保持全宽、`object-position: top`，只截掉底部
+
+「自由编辑」里正文贴的图片直链会被 `splitMediaFromText()` 自动识别成配图并从正文摘掉（X 上媒体链接本来也不显示为文本）。`effectiveContent()` 是正文与配图的唯一出口，`renderCard()` / `buildShareUrl()` / 「复制文案」都走它。
+
 ### Agent 接口：URL 参数 → embed 渲染
 
 `applyUrlParams()` 解析参数 → `runEmbed()` 隐藏 UI、渲染、把 base64 PNG 挂到 `window.__cardDataUrl`、尺寸挂 `window.__cardSize`，最后置 `document.documentElement.dataset.ready = "1"`。

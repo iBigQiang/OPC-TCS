@@ -209,9 +209,13 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .tc-body.size-s { font-size: calc(var(--tc-body-size, 17px) * 0.76); line-height: 1.55; }
 .tc-body.size-xs { font-size: calc(var(--tc-body-size, 17px) * 0.68); line-height: 1.5; }
 .tc-body .tc-link { color: #1d9bf0; }
-/* 推文配图：贴 X 原生——正文下方、圆角、撞满卡片宽。
-   竖图（如视频封面 1080×1920）封顶裁切，否则会把卡片拉得极长、fitScale 一缩字就没法看了 */
-.tc-media { display: block; width: 100%; max-height: 320px; object-fit: cover; border-radius: 16px; margin-top: 12px; border: 1px solid #eff3f4; }
+/* 推文配图：贴 X 原生——正文下方、圆角。
+   默认全宽等比，装不下时先等比缩小（宽度自动收窄、图片保持完整）；
+   缩到太窄就换 .crop：保持全宽、从顶部开始、只截掉底部——
+   绝不用居中裁切，那会把图片头尾都切掉。 */
+.tc-media { display: block; width: 100%; height: auto; margin: 12px auto 0; border-radius: 16px; border: 1px solid #eff3f4; }
+.tc-media.fit { width: auto; max-width: 100%; }
+.tc-media.crop { width: 100%; object-fit: cover; object-position: top center; }
 .tc-media.hidden { display: none; }
 .tc-metrics { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eff3f4; display: flex; gap: 18px; color: #536471; font-size: 12.5px; }
 .tc-metrics span { display: inline-flex; align-items: center; gap: 5px; }

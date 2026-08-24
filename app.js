@@ -310,6 +310,31 @@ const METRIC_ICONS = {
   views: '<svg viewBox="0 0 24 24"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg>',
 };
 
+/* 编辑框里贴的图片直链自动转成卡片配图，并从正文里摘掉——X 上的媒体链接
+   本来也不作为文本显示。取最后一个匹配（通常贴在末尾）。 */
+const IMG_URL_RE = /https?:\/\/\S+?\.(?:jpg|jpeg|png|webp|gif)(?:[?#]\S*)?(?=\s|$)/gi;
+
+function splitMediaFromText(raw) {
+  const found = String(raw || "").match(IMG_URL_RE);
+  if (!found || !found.length) return { text: raw || "", image: "" };
+  const image = found[found.length - 1];
+  const text = String(raw).replace(image, "")
+    .split("\n").map((l) => l.replace(/\s+$/, "")).join("\n")
+    .replace(/\n{3,}/g, "\n\n").trim();
+  return { text, image };
+}
+
+/* 卡片实际要渲染的正文与配图。自由编辑时正文里贴的图链优先，
+   否则用推文自带的（抓取来的或 URL 的 img 参数）。 */
+function effectiveContent() {
+  if (state.tab === "custom") {
+    const sp = splitMediaFromText(state.customText);
+    if (sp.image) return { text: sp.text, image: sp.image };
+    return { text: state.customText, image: state.mediaUrl };
+  }
+  return { text: currentText(), image: state.mediaUrl };
+}
+
 /* 当前上卡的文案与日期。「在线抓取」tab 还没有自己的内容源，
    所以判断按「有没有选中的推文」而不是按 tab 名——否则从自由编辑切过去卡片会变空。 */
 function fromLibrary() {
@@ -336,7 +361,8 @@ function renderBody(text) {
 }
 
 function renderCard() {
-  const text = currentText() || "写点什么……";
+  const content = effectiveContent();
+  const text = content.text || "写点什么……";
   const date = currentDate();
 
   const body = $("tc-body");
@@ -383,11 +409,10 @@ function renderCard() {
   // 推文配图：换图时才重设 src，避免每次渲染都触发重新加载导致闪烁。
   // 无图时回落到透明占位而不是清空 src——空 src 的 <img> 会让 html-to-image 光栅化直接失败
   const mediaEl = $("tc-media");
-  const showMedia = !!state.mediaUrl && state.mediaOn;
+  const showMedia = !!content.image && state.mediaOn;
   mediaEl.classList.toggle("hidden", !showMedia);
-  const wantSrc = showMedia ? state.mediaUrl : BLANK_PNG;
+  const wantSrc = showMedia ? content.image : BLANK_PNG;
   if (mediaEl.getAttribute("src") !== wantSrc) mediaEl.src = wantSrc;
-  $("media-option").classList.toggle("hidden", !state.mediaUrl);
 
   const stage = $("stage");
   const isFrame = state.mode !== "card"; // poster(3:4) 或 tall(9:16)
@@ -421,14 +446,58 @@ function safeAreaHeight(stage) {
   return stage.clientHeight - top - 150;
 }
 
-/* 有配图时按安全区约束，保证图文整体不越过红色虚线；
-   纯文字卡沿用原来的画框 92%——改了会让所有历史分享链接的出图突然变小。 */
+/* 图片被压到比这更矮就没意义了，此时改为缩整张卡片 */
+const MEDIA_MIN_H = 140;
+/* 等比缩小后宽度不足卡片的这个比例，就说明图太"瘦"了，改用全宽+顶部裁切 */
+const MEDIA_MIN_W_RATIO = 0.55;
+
+/* 图片在可用高度 room 内怎么摆：
+   1) 全宽放得下 → 原样完整显示
+   2) 放不下但等比缩小后不至于太窄 → 等比缩小，宽度自动收窄，图片仍然完整
+   3) 缩完太窄 → 保持全宽、从顶部开始，只截掉底部（居中裁切会把图片头尾都丢掉） */
+function layoutMedia(room) {
+  const media = $("tc-media");
+  media.classList.remove("fit", "crop");
+  media.style.maxHeight = "";
+  media.style.height = "";
+  const fullW = media.offsetWidth, fullH = media.offsetHeight;
+  if (!fullH || fullH <= room) return;
+
+  const scaledW = fullW * (room / fullH);
+  if (scaledW >= fullW * MEDIA_MIN_W_RATIO) {
+    media.classList.add("fit");
+    media.style.maxHeight = room + "px";
+  } else {
+    media.classList.add("crop");
+    media.style.height = room + "px";
+  }
+}
+
+/* 目标：只要装得下就完整显示，装不下按 layoutMedia 的三档处理，
+   实在放不开才缩整卡。纯文字卡沿用原来的画框 92%——
+   改了会让所有历史分享链接的出图突然变小。 */
 function measureFitScale() {
   const stage = $("stage");
   const card = $("tweet-card");
+  const media = $("tc-media");
   if (state.mode === "card" || !card.offsetHeight) return;
-  const hasMedia = !!state.mediaUrl && state.mediaOn;
-  const avail = hasMedia ? safeAreaHeight(stage) : stage.clientHeight * 0.92;
+
+  if (media.classList.contains("hidden")) {
+    media.classList.remove("fit", "crop");
+    media.style.maxHeight = "";
+    media.style.height = "";
+    state.fitScale = Math.min(1, (stage.clientHeight * 0.92) / card.offsetHeight);
+    applyCardTransform();
+    return;
+  }
+
+  const avail = safeAreaHeight(stage);
+  // 先复位成「全宽等比」再测，才能算出卡片里除图片以外占了多少
+  media.classList.remove("fit", "crop");
+  media.style.maxHeight = "";
+  media.style.height = "";
+  const other = card.offsetHeight - media.offsetHeight;
+  layoutMedia(Math.max(MEDIA_MIN_H, avail - other));
   state.fitScale = Math.min(1, avail / card.offsetHeight);
   applyCardTransform();
 }
@@ -866,7 +935,10 @@ async function fetchTweetByUrl() {
       body: JSON.stringify({ url }),
     });
 
-    if (res.status === 404) throw new Error("本地没有跑转发接口，请改用 npx wrangler pages dev . 启动");
+    // 404 = 没有这个路由；501 = python 的 http.server 对 POST 的固定回应（Unsupported method）
+    if (res.status === 404 || res.status === 501) {
+      throw new Error("当前服务没有抓取接口。本地请用 npx wrangler pages dev . 启动（python -m http.server 不支持），或直接用线上站点");
+    }
     let data = {};
     try { data = await res.json(); } catch { /* 上游可能返回非 JSON */ }
     if (!res.ok) {
@@ -1122,7 +1194,7 @@ function bind() {
   };
 
   $("copy-text").onclick = async () => {
-    const text = currentText();
+    const text = effectiveContent().text;   // 与卡片一致：图片链接已被摘成配图
     await navigator.clipboard.writeText(text);
     $("copy-text").textContent = "已复制 ✓";
     setTimeout(() => ($("copy-text").textContent = "复制文案"), 1200);
@@ -1379,8 +1451,9 @@ function buildAgentPrompt() {
 
 function buildShareUrl(embed) {
   const q = new URLSearchParams();
-  const text = currentText();
-  if (text) q.set("text", text);
+  const content = effectiveContent();
+  if (content.text) q.set("text", content.text);
+  if (content.image) q.set("img", content.image);
   // 不是今天才写：卡片显示的是来源推文的发布日期，不带上的话打开链接会变成打开当天
   const date = currentDate();
   if (date && date !== todayISO()) q.set("date", date);
@@ -1394,7 +1467,6 @@ function buildShareUrl(embed) {
   if (state.cardOpacity !== 100) q.set("opacity", state.cardOpacity);
   if (state.bodySize !== 17) q.set("fontsize", state.bodySize);
   if (state.bgDim !== 0) q.set("dim", state.bgDim);
-  if (state.mediaUrl) q.set("img", state.mediaUrl);
   if (!state.mediaOn) q.set("media", "off");
   if (Math.round(state.cardX) !== -20) q.set("x", Math.round(state.cardX));
   if (Math.round(state.cardY) !== -37) q.set("y", Math.round(state.cardY));
