@@ -74,9 +74,8 @@ function fmtNum(n) {
 }
 
 function fmtDate(iso) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const now = new Date();
-  return (y === now.getFullYear() ? "" : `${y}年`) + `${m}月${d}日`;
+  const [, m, d] = iso.split("-").map(Number);
+  return `${m}月${d}日`;
 }
 
 function todayISO() {
@@ -309,6 +308,8 @@ function applyMetricsFor(p) {
 }
 
 function selectPost(p) {
+  // 选用新推文时解除旧分享链接的日期覆盖，日期跟随新内容。
+  state.dateOverride = "";
   state.selected = p;
   applyMetricsFor(p);
   state.mediaUrl = (p && p.media && p.media.image) || "";
@@ -1419,7 +1420,10 @@ function bind() {
   // 清空编辑框视为从头写，日期回到今天
   $("custom-text").oninput = (e) => {
     state.customText = e.target.value;
-    if (!state.customText.trim()) state.customDate = "";
+    if (!state.customText.trim()) {
+      state.customDate = "";
+      state.dateOverride = "";
+    }
     renderCard();
   };
   $("card-scale").oninput = (e) => { paintRange(e.target); state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; measureFitScale(); refreshAgentPrompt(); };
