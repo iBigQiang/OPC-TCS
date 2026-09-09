@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>推文卡片生成器（OPC Tweet Card Studio）| 推文一键做成抖音小红书图片卡片</title>
-<meta name="description" content="把推文（X/Twitter）做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，纯本地运行，数据不上传。" />
+<meta name="description" content="把推文（X/Twitter）做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，卡片在本地生成，设置仅存本机浏览器。" />
 <meta name="keywords" content="推文卡片,推特截图生成器,tweet卡片,抖音图文,小红书图片,推文转图片,twitter card generator,X截图,Live图,实况照片" />
 <meta name="robots" content="index,follow,max-image-preview:large" />
 <!-- 部署到自己的域名后，在这里补 <link rel="canonical"> 和 og:url，填你自己的地址；
@@ -12,17 +12,17 @@
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="OPC Tweet Card Studio" />
 <meta property="og:title" content="推文卡片生成器（OPC Tweet Card Studio） | 推文一键做成抖音小红书图片卡片" />
-<meta property="og:description" content="写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，纯本地运行，数据不上传。" />
+<meta property="og:description" content="写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，卡片在本地生成，设置仅存本机浏览器。" />
 <meta property="og:locale" content="zh_CN" />
 <!-- 分享大图：建议自备 1200×630 的 og.png 替换掉这里的头像 -->
 <meta property="og:image" content="logo.png" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="推文卡片生成器（OPC Tweet Card Studio） | 推文一键做成抖音小红书图片卡片" />
-<meta name="twitter:description" content="写文案、在线抓取推文或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。纯本地运行，数据不上传。" />
+<meta name="twitter:description" content="写文案、在线抓取推文或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。卡片在本地生成，设置仅存本机浏览器。" />
 <meta name="twitter:image" content="logo.png" />
 <link rel="icon" href="logo.png" />
 <link rel="stylesheet" href="styles.css" />
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"推文卡片生成器（OPC Tweet Card Studio）","applicationCategory":"DesignApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"把推文做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明背景 PNG。所有处理在浏览器本地完成。","inLanguage":"zh-CN"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"推文卡片生成器（OPC Tweet Card Studio）","applicationCategory":"DesignApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"把推文做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明背景 PNG。卡片编辑与生成在浏览器本地完成，在线抓取按需发送请求。","inLanguage":"zh-CN"}</script>
 </head>
 <body>
 <main class="app-shell">
@@ -35,8 +35,8 @@
     <img class="hero-logo" src="logo.png" alt="OPC Tweet Card Studio" width="256" height="256" />
     <div class="hero-text">
       <h1>推文卡片生成器（OPC Tweet Card Studio）</h1>
-      <p>把推文做成可直接发布的图片卡片：写文案或导入你的推文库 → 选背景 → 导出 3:4 / 9:16 竖图、透明 PNG，或 3 秒动效 Live 图素材（MP4）。全部在浏览器本地完成，数据不上传。</p>
-      <p class="hero-agent">🤖 也可以让 AI Agent 直接调用：调好样式后到左下角「<a href="#agent-prompt">交给 AI Agent</a>」复制一段指令，发给 Claude Code / Codex 即可批量出图（<a href="llms.txt" target="_blank" rel="noopener">参数文档</a>）。</p>
+      <p>把推文做成可直接发布的图片卡片：写文案或导入你的推文库 → 选背景 → 导出 3:4 / 9:16 竖图、透明 PNG，或 3 秒动效 Live 图素材（MP4）。卡片在浏览器本地生成，设置仅存本机浏览器；在线抓取按需发送请求。</p>
+      <p class="hero-agent">也可以让 AI Agent 直接调用：调好样式后到左下角「<a href="#agent-prompt">交给 AI Agent</a>」复制一段指令，发给 Claude Code / Codex 即可批量出图（<a href="llms.txt" target="_blank" rel="noopener">参数文档</a>）。</p>
     </div>
   </div>
 
@@ -53,10 +53,36 @@
       </section>
 
       <section class="control-section" id="library-section">
-        <div class="section-heading"><span>02</span><div><h2>推文库 <em id="lib-count"></em></h2><p>搜关键词，点一条直接上卡</p></div></div>
+        <div class="section-heading">
+          <span>02</span><div><h2>推文库 <em id="lib-count"></em></h2><p>搜索推文，点击上卡</p></div>
+          <button class="chip heading-action library-action" id="library-toggle" aria-expanded="false" aria-controls="library-settings">导入 / 导出 / 默认</button>
+        </div>
+        <div class="library-settings hidden" id="library-settings">
+          <div class="segmented small" role="tablist" aria-label="推文库管理">
+            <button id="library-tab-import" class="active" role="tab" aria-selected="true" aria-controls="library-panel-import">导入</button>
+            <button id="library-tab-export" role="tab" aria-selected="false" aria-controls="library-panel-export" tabindex="-1">导出</button>
+            <button id="library-tab-default" role="tab" aria-selected="false" aria-controls="library-panel-default" tabindex="-1">默认</button>
+          </div>
+          <div class="library-panel" id="library-panel-import" role="tabpanel" aria-labelledby="library-tab-import">
+            <p class="mini-label">选择 JSON 文件，替换本机推文库。已有内容需要保留时，请先导出备份。</p>
+            <div class="chip-row"><label class="chip file-chip">导入推文库 JSON<input id="posts-upload" type="file" accept=".json,application/json" hidden /></label></div>
+            <p class="mini-label">推文库格式：JSON 数组，每条只有 text 必填；date / datetime / topic / sourceUrl / metrics / media 可选。互动数据沿用新接口字段，真实的 0 会保留，仅缺少互动数据时随机填充。</p>
+          </div>
+          <div class="library-panel hidden" id="library-panel-export" role="tabpanel" aria-labelledby="library-tab-export">
+            <p class="mini-label">将当前本机推文库完整下载为 JSON 文件，可用来备份或导入其他浏览器。</p>
+            <div class="chip-row"><button class="chip" id="posts-export">导出推文库 JSON</button></div>
+          </div>
+          <div class="library-panel hidden" id="library-panel-default" role="tabpanel" aria-labelledby="library-tab-default">
+            <p class="mini-label">清除本机推文库和同步记录，重新载入站点默认推文库。请先导出需要保留的内容；账号信息和接口设置会保留。</p>
+            <div class="chip-row"><button class="chip" id="posts-reset">恢复默认推文库</button></div>
+          </div>
+          <p class="mini-label" id="library-status" role="status"></p>
+          <p class="mini-label">导入的数据只保存在当前浏览器；导出仅下载到你的设备。这些操作不会上传数据或修改线上推文库。</p>
+        </div>
+        <div class="library-browser" id="library-browser">
         <div class="search-row">
           <input id="search" type="search" placeholder="搜索：AI、流量、开源…" />
-          <button id="random-btn" class="icon-button" title="随机来一条">🎲</button>
+          <button id="random-btn" class="icon-button" title="随机来一条" aria-label="随机来一条">&#x1F3B2;</button>
         </div>
         <div class="chip-row" id="topic-chips"></div>
         <div class="chip-row">
@@ -67,13 +93,14 @@
           <select class="chip" id="month-filter"></select>
         </div>
         <ul class="post-list" id="post-list"></ul>
+        </div>
       </section>
 
       <section class="control-section hidden" id="fetch-section">
         <div class="section-heading">
           <span>02</span>
           <div><h2>在线抓取</h2><p>贴一条推文链接，直接抓成卡片</p></div>
-          <button class="icon-button heading-action" id="importer-toggle" title="抓取服务设置">⚙</button>
+          <button class="icon-button heading-action" id="importer-toggle" title="抓取服务设置" aria-label="抓取服务设置">&#x2699;</button>
         </div>
         <input class="text-input" id="fetch-url" type="url" placeholder="https://x.com/用户名/status/推文ID" />
         <div class="chip-row">
@@ -84,7 +111,8 @@
         <div class="importer-settings hidden" id="importer-settings">
           <div class="option">
             <label class="mini-label" for="importer-url">接口地址</label>
-            <input class="text-input" id="importer-url" type="url" placeholder="https://importer-x.hitu.me/import/twitter" />
+            <input class="text-input" id="importer-url" type="url" placeholder="https://x-api.opc.tools/import/twitter" />
+            <p class="mini-label">支持 API 根域名（如 https://x-api.opc.tools）或完整接口地址，根域名会自动补全 /import/twitter。</p>
           </div>
           <div class="option">
             <label class="mini-label" for="importer-token">访问令牌</label>
@@ -92,14 +120,14 @@
           </div>
           <div class="option">
             <label class="mini-label" for="importer-admin">管理入库密码</label>
-            <input class="text-input" id="importer-admin" type="password" placeholder="留空则抓到的推文不入在线库" autocomplete="off" />
+            <input class="text-input" id="importer-admin" type="password" placeholder="留空则只载入编辑器，不加入本机推文库" autocomplete="off" />
           </div>
           <div class="chip-row">
             <button class="chip" id="importer-save">保存</button>
             <button class="chip" id="importer-clear">清除</button>
             <span class="mini-label" id="importer-status"></span>
           </div>
-          <p class="mini-label">令牌只存在你自己的浏览器里（localStorage），不会上传，也不会写进部署的站点。管理入库密码由服务端校验，密码不对时抓到的推文只进编辑器、不入推文库。</p>
+          <p class="mini-label">接口地址、访问令牌和账号信息仅保存在本机浏览器，保存设置本身不发送请求。抓取时，令牌经本站转发给所填 API 用于认证，不在本站持久保存或写入仓库。管理入库密码由服务端校验，未填写或校验失败时，抓到的推文只载入编辑器，不加入本机推文库。</p>
         </div>
 
         <p class="mini-label">默认抓到的推文直接上卡，随后可在「自由编辑」里继续改。</p>
@@ -116,8 +144,9 @@
       <section class="control-section">
         <div class="section-heading"><span>03</span><div><h2>账号信息</h2><p>换成你自己的身份，只保存在本机浏览器</p></div></div>
         <div class="profile-row">
-          <img class="profile-avatar" id="profile-avatar-preview" src="avatar.jpg" alt="" />
+          <img class="profile-avatar" id="profile-avatar-preview" src="OPC-TCS_logo.png" alt="" />
           <label class="chip file-chip">上传头像<input id="avatar-upload" type="file" accept="image/*" hidden /></label>
+          <button class="chip" id="profile-reset">恢复默认</button>
         </div>
         <div class="option-grid">
           <div class="option">
@@ -126,28 +155,23 @@
           </div>
           <div class="option">
             <span class="mini-label">用户名（不带 @）</span>
-            <input class="text-input" id="profile-handle" placeholder="yourname" />
+            <input class="text-input" id="profile-handle" placeholder="UserName_ID" />
           </div>
           <div class="option full">
             <span class="mini-label">认证徽章</span>
             <div class="segmented small">
               <button id="badge-on" class="active">蓝 V</button>
+              <button id="badge-gold">金 V</button>
               <button id="badge-off">无</button>
             </div>
           </div>
         </div>
-        <div class="chip-row">
-          <label class="chip file-chip">导入推文库 JSON<input id="posts-upload" type="file" accept=".json,application/json" hidden /></label>
-          <button class="chip" id="posts-export">导出推文库 JSON</button>
-          <button class="chip" id="profile-reset">恢复默认</button>
-        </div>
-        <p class="mini-label">推文库格式：JSON 数组，每条只有 text 必填；date / datetime / topic / sourceUrl / metrics / media 可选。metrics 缺失或全为 0 时，卡片会用随机互动数据填充。导出后替换项目里的 posts.json 再部署，抓到的推文就沉淀进库了。</p>
       </section>
 
       <section class="control-section">
         <div class="section-heading"><span>04</span><div><h2>用 X API 同步推文</h2><p>用你自己的 API Key（BYOK），头像昵称自动填好</p></div></div>
         <input class="text-input" id="x-token" type="password" placeholder="Bearer Token（AAAA 开头的长字符串）" autocomplete="off" />
-        <p class="mini-label">还没有 Key？<a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noopener"><strong>去 X Developer Portal 创建 ↗</strong></a>　新建 App → Keys and tokens，只复制 <strong>Bearer Token</strong>；API Key / Secret 用不到。</p>
+        <p class="mini-label">还没有 Key？<a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noopener"><strong>去 X Developer Portal 创建 </strong></a>　新建 App → Keys and tokens，只复制 <strong>Bearer Token</strong>；API Key / Secret 用不到。</p>
         <div class="option-grid">
           <div class="option">
             <span class="mini-label">用户名（不带 @）</span>
@@ -176,9 +200,9 @@
         <textarea class="text-input agent-prompt" id="agent-prompt" rows="8" readonly></textarea>
         <div class="chip-row">
           <button class="chip" id="copy-agent">复制这段指令</button>
-          <a class="chip" href="llms.txt" target="_blank" rel="noopener">完整参数文档 ↗</a>
+          <a class="chip" href="llms.txt" target="_blank" rel="noopener">完整参数文档 </a>
         </div>
-        <p class="mini-label">指令里的链接已包含你当前调好的全部设置，改样式后重新复制即可。需要你的 Agent 有浏览器能力（浏览器 MCP / Playwright / computer-use 都行）；图片在 Agent 本机生成，不经过任何服务器。</p>
+        <p class="mini-label">指令包含当前正文、账号文字、徽章、样式、互动数据和内置背景。本机上传的头像、自定义背景需另附文件或提供图片 URL；改完后请重新复制。Agent 需要浏览器能力，图片在其浏览器中生成；页面和远程素材仍需联网加载，链接不含访问令牌。</p>
       </section>
 
     </aside>
@@ -221,22 +245,35 @@
             <span class="sg-label sg-label-bottom">尾部：文案标题 / 音乐 / 评论 预留区</span>
           </div>
           <div class="tweet-card" id="tweet-card">
-            <div class="tc-head">
-              <img class="tc-avatar" id="tc-avatar" src="avatar.jpg" alt="" />
-              <div class="tc-id">
-                <div class="tc-name"><span id="tc-name-text"></span>
-                  <svg class="tc-badge" id="tc-badge" viewBox="0 0 22 22"><path fill="#1d9bf0" d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>
+            <div class="tc-content" id="tc-content">
+              <div class="tc-head">
+                <img class="tc-avatar" id="tc-avatar" src="OPC-TCS_logo.png" alt="" />
+                <div class="tc-id">
+                  <div class="tc-name"><span id="tc-name-text"></span>
+                    <svg class="tc-badge" id="tc-badge" viewBox="0 0 22 22"><path fill="#1d9bf0" d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/></svg>
+                    <!-- 金 V 原图留白较多，收紧视口以匹配蓝 V 的实际图形尺寸。 -->
+                    <svg class="tc-badge" id="tc-badge-gold" viewBox="1.536 1.05 18.928 19.9" preserveAspectRatio="none" style="display: none">
+                      <defs>
+                        <linearGradient id="tc-gold-gradient" x1="5.355" y1="3.395" x2="16.361" y2="19.133" gradientUnits="userSpaceOnUse">
+                          <stop offset="0%" stop-color="#f9e87f"/>
+                          <stop offset="40.6%" stop-color="#e2b719"/>
+                          <stop offset="100%" stop-color="#cb7b00"/>
+                        </linearGradient>
+                      </defs>
+                      <path fill-rule="evenodd" clip-rule="evenodd" d="M13.101 4.533L11 2.5 8.899 4.533l-2.895-.41-.505 2.88-2.583 1.37L4.2 11l-1.284 2.627 2.583 1.37.505 2.88 2.895-.41L11 19.5l2.101-2.033 2.895.41.505-2.88 2.583-1.37L17.8 11l1.284-2.627-2.583-1.37-.505-2.88zm-6.868 6.89l3.429 3.428 5.683-6.206-1.347-1.247-4.4 4.795-2.072-2.072z" fill="url(#tc-gold-gradient)"/>
+                    </svg>
+                  </div>
+                  <div class="tc-handle"><span id="tc-handle-text"></span> · <span id="tc-date"></span></div>
                 </div>
-                <div class="tc-handle"><span id="tc-handle-text"></span> · <span id="tc-date"></span></div>
+                <span class="tc-x-brand"><svg class="tc-x-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
               </div>
-              <span class="tc-x-brand"><svg class="tc-x-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
+              <div class="tc-body" id="tc-body"></div>
+              <!-- 推文配图（视频推文取封面）。crossorigin 是必须的：没有它 html-to-image 光栅化时会污染 canvas。
+                   src 永远保持合法（无图时用 1×1 透明占位）——空 src 的 <img> 会让 html-to-image 直接报错 -->
+              <img class="tc-media hidden" id="tc-media" crossorigin="anonymous" alt=""
+                   src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" />
+              <div class="tc-metrics" id="tc-metrics"></div>
             </div>
-            <div class="tc-body" id="tc-body"></div>
-            <!-- 推文配图（视频推文取封面）。crossorigin 是必须的：没有它 html-to-image 光栅化时会污染 canvas。
-                 src 永远保持合法（无图时用 1×1 透明占位）——空 src 的 <img> 会让 html-to-image 直接报错 -->
-            <img class="tc-media hidden" id="tc-media" crossorigin="anonymous" alt=""
-                 src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" />
-            <div class="tc-metrics" id="tc-metrics"></div>
           </div>
         </div>
       </div>
@@ -272,6 +309,14 @@
             <div class="segmented small">
               <button id="media-on" class="active">显示</button>
               <button id="media-off">隐藏</button>
+            </div>
+          </div>
+          <div class="option hidden" id="card-ratio-option">
+            <span class="mini-label">卡片比例</span>
+            <div class="segmented small">
+              <button id="card-ratio-auto" class="active">默认</button>
+              <button id="card-ratio-poster">3:4</button>
+              <button id="card-ratio-tall">9:16</button>
             </div>
           </div>
           <div class="option" id="guides-option">
@@ -318,7 +363,7 @@
 
   <footer class="footer">
     <p><a href="https://box.opc.tools">&larr; 返回工具列表</a></p>
-    <p>所有处理均在浏览器本地完成，图片与文字不会上传到任何服务器。灵感来自 <a href="https://dontbesilent-tweet-card-studio.vercel.app/" target="_blank" rel="noopener">dontbesilent</a> & <a href="https://github.com/imraywang/tweet-card" target="_blank" rel="noopener">Ray Wang</a> ，感谢开源分享。</p>
+    <p>卡片编辑与生成在浏览器本地完成，设置仅存本机浏览器；在线抓取时，链接和认证信息经本站转发给所填 API，不在本站持久保存。灵感来自 <a href="https://dontbesilent-tweet-card-studio.vercel.app/" target="_blank" rel="noopener">dontbesilent</a> & <a href="https://github.com/imraywang/tweet-card" target="_blank" rel="noopener">Ray Wang</a> ，感谢开源分享。</p>
     <p>&copy; 2026 <a href="https://box.opc.tools" target="_blank" rel="noopener">OPC ToolsBox</a></p>
   </footer>
 </main>

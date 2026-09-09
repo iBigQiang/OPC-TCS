@@ -7,7 +7,7 @@ window.requestAnimationFrame = (cb) =>
 
 const $ = (id) => document.getElementById(id);
 
-const DEFAULT_PROFILE = { name: "你的名字", handle: "yourname", avatar: "avatar.jpg", verified: true };
+const DEFAULT_PROFILE = { name: "你的名字", handle: "UserName_ID", avatar: "OPC-TCS_logo.png", verified: true, badge: "blue" };
 
 /* 卡片默认落点（px，相对画框中心）。双击复位、state 初值、buildShareUrl()
    的「是否写进链接」判断共用这两个常量，散成三处硬编码迟早对不上。 */
@@ -28,7 +28,8 @@ const state = {
   customSeed: "",        // 上次带入编辑框的推文原文，用来判断用户改没改过
   customDate: "",        // 编辑框内容的来源推文发布日期，空则用今天
   tab: "library",        // library | fetch | custom
-  mode: "poster",        // poster | card
+  mode: "poster",        // poster | tall | card
+  cardRatio: "auto",
   theme: "light",        // light | dark
   metricsOn: true,
   metricsIsReal: false,  // 当前展示的互动数据是推文自带的真实值还是随机生成的
@@ -115,20 +116,23 @@ function saveProfileOverride(patch) {
 
 function applyProfile() {
   const p = state.profile;
-  const avatarSrc = p.avatarData || p.avatar || "avatar.jpg";
+  const avatarSrc = p.avatarData || p.avatar || DEFAULT_PROFILE.avatar;
   $("tc-avatar").src = avatarSrc;
   const brandAvatar = $("brand-avatar");
   if (brandAvatar) brandAvatar.src = avatarSrc;
   $("profile-avatar-preview").src = avatarSrc;
   $("tc-name-text").textContent = p.name;
   $("tc-handle-text").textContent = "@" + p.handle;
-  $("tc-badge").style.display = p.verified ? "" : "none";
+  const badge = p.verified ? (p.badge === "gold" ? "gold" : "blue") : "none";
+  $("tc-badge").style.display = badge === "blue" ? "" : "none";
+  $("tc-badge-gold").style.display = badge === "gold" ? "" : "none";
   const brandEyebrow = $("brand-eyebrow");
   if (brandEyebrow) brandEyebrow.textContent = `${p.name} · @${p.handle}`.toUpperCase();
   $("profile-name").value = p.name;
   $("profile-handle").value = p.handle;
-  $("badge-on").classList.toggle("active", !!p.verified);
-  $("badge-off").classList.toggle("active", !p.verified);
+  $("badge-on").classList.toggle("active", badge === "blue");
+  $("badge-gold").classList.toggle("active", badge === "gold");
+  $("badge-off").classList.toggle("active", badge === "none");
 }
 
 /* 导入的推文库：字段宽容，缺什么补什么 */
@@ -144,7 +148,8 @@ function normalizePosts(arr) {
         long: !!p.long,
         sourceUrl: p.sourceUrl || "",
         topic: p.topic || "未分类",
-        metrics: Object.assign({ likes: 0, replies: 0, reposts: 0, bookmarks: 0, views: 0 }, p.metrics || {}),
+        metrics: normalizeMetrics(p.metrics),
+        metricsAvailable: p.metricsAvailable ?? !!p.metrics,
       };
       // media 可选：只有真带图才留字段，避免给每条都塞一个空对象
       if (p.media && (p.media.image || p.media.video)) {
@@ -173,12 +178,12 @@ function applyFilter() {
 /* 客观特征标签：从数据确定性推导，任何账号都适用。
    爆款/高收藏按库内分位数（前 10%），样本 ≥20 条才启用。 */
 const TAG_DEFS = [
-  ["🔥 爆款", (p, ctx) => ctx.likesP90 > 0 && p.metrics.likes >= ctx.likesP90],
-  ["⭐ 高收藏", (p, ctx) => ctx.bmP90 > 0 && p.metrics.bookmarks >= ctx.bmP90],
-  ["📜 长推", (p) => p.text.length > 300],
-  ["📋 清单体", (p) => /(^|\n)\s*(?:[1１][、.．)）]|1️⃣)/.test(p.text)],
-  ["❓ 提问式", (p) => /[？?]/.test(p.text.split("\n")[0]) || /[？?]\s*$/.test(p.text)],
-  ["💬 金句", (p) => p.text.length <= 60],
+  ["爆款", (p, ctx) => ctx.likesP90 > 0 && p.metrics.likes >= ctx.likesP90],
+  ["高收藏", (p, ctx) => ctx.bmP90 > 0 && p.metrics.bookmarks >= ctx.bmP90],
+  ["长推", (p) => p.text.length > 300],
+  ["清单体", (p) => /(^|\n)\s*(?:[1１][、.．)）]|1\uFE0F?\u20E3)/.test(p.text)],
+  ["提问式", (p) => /[？?]/.test(p.text.split("\n")[0]) || /[？?]\s*$/.test(p.text)],
+  ["金句", (p) => p.text.length <= 60],
 ];
 
 function computeTags() {
@@ -237,7 +242,7 @@ function renderList() {
     li.className = "post-item" + (state.selected && state.selected.id === p.id ? " active" : "");
     const label = p.topic && p.topic !== "未分类" ? p.topic : ((p.tags && p.tags[0]) || "");
     li.innerHTML = `
-      <div class="pi-meta"><span>${p.date}${label ? " · " + label : ""}</span><span>❤ ${fmtNum(p.metrics.likes)}</span></div>
+      <div class="pi-meta"><span>${p.date}${label ? " · " + label : ""}</span><span>点赞 ${fmtNum(p.metrics.likes)}</span></div>
       <div class="pi-text"></div>`;
     li.querySelector(".pi-text").textContent = p.text;
     li.onclick = () => selectPost(p);
@@ -262,25 +267,41 @@ function rollMetrics() {
     views,
     likes,
     bookmarks: Math.round(likes * r(0.55, 1.05)),
-    reposts: Math.round(likes * r(0.15, 0.32)),
+    retweets: Math.round(likes * r(0.15, 0.32)),
     replies: Math.round(likes * r(0.05, 0.12)),
+    quotes: Math.round(likes * r(0.01, 0.04)),
   };
+  state.fakeMetrics.score = metricScore(state.fakeMetrics);
   state.metricsIsReal = false;
 }
 
-const METRIC_KEYS = ["likes", "replies", "reposts", "bookmarks", "views"];
+const METRIC_KEYS = ["likes", "views", "retweets", "replies", "bookmarks", "quotes", "score"];
+const METRIC_LABELS = { likes: "点赞", views: "浏览", retweets: "转推", replies: "回复", bookmarks: "收藏", quotes: "引用", score: "权重分" };
 
-/* 判断推文自带的互动数据是否可用：任一项 > 0 就算真实数据。
-   全 0 通常意味着字段是 normalizePosts() 补出来的占位值。 */
+/* 只在旧库的读取边界兼容 reposts，新数据和导出统一使用接口原名。 */
+function normalizeMetrics(raw = {}) {
+  const m = raw || {};
+  return Object.fromEntries(METRIC_KEYS.map((key) => {
+    const value = Number(key === "retweets" ? m.retweets ?? m.reposts : m[key]);
+    return [key, Number.isFinite(value) ? Math.max(0, value) : 0];
+  }));
+}
+
+/* 与新接口评分公式一致，已有接口 score 直接保留，不重新计算。 */
+function metricScore(m) {
+  return Math.trunc(m.likes + m.retweets * 2 + m.replies * 3 + m.bookmarks * 4 + m.views / 1000);
+}
+
+/* 全零也是有效的接口结果；只有缺少数据时才用随机值。 */
 function hasRealMetrics(p) {
   const m = p && p.metrics;
-  return !!m && METRIC_KEYS.some((k) => Number(m[k]) > 0);
+  return !!m && p.metricsAvailable !== false && METRIC_KEYS.some((k) => Object.hasOwn(m, k));
 }
 
 /* 有真实数据就用真实的，没有才随机——「换一组数据」按钮可以强制切回随机 */
 function applyMetricsFor(p) {
   if (hasRealMetrics(p)) {
-    state.fakeMetrics = Object.fromEntries(METRIC_KEYS.map((k) => [k, Number(p.metrics[k]) || 0]));
+    state.fakeMetrics = normalizeMetrics(p.metrics);
     state.metricsIsReal = true;
   } else {
     rollMetrics();
@@ -321,11 +342,11 @@ function randomPost() {
 /* ---------- 卡片渲染 ---------- */
 
 const METRIC_ICONS = {
-  replies: '<svg viewBox="0 0 24 24"><path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01z"/></svg>',
-  reposts: '<svg viewBox="0 0 24 24"><path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"/></svg>',
-  likes: '<svg viewBox="0 0 24 24"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91z"/></svg>',
-  bookmarks: '<svg viewBox="0 0 24 24"><path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5z"/></svg>',
-  views: '<svg viewBox="0 0 24 24"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg>',
+  replies: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z"/></svg>',
+  retweets: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"/></svg>',
+  likes: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91zm4.187 7.69c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"/></svg>',
+  views: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg>',
+  bookmarks: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5zM6.5 4c-.276 0-.5.22-.5.5v14.56l6-4.29 6 4.29V4.5c0-.28-.224-.5-.5-.5h-11z"/></svg>',
 };
 
 /* 编辑框里贴的图片直链自动转成卡片配图，并从正文里摘掉——X 上的媒体链接
@@ -413,8 +434,8 @@ function renderCard() {
   const m = state.fakeMetrics;
   if (state.metricsOn && m) {
     metricsEl.classList.remove("hidden");
-    metricsEl.innerHTML = ["replies", "reposts", "likes", "bookmarks", "views"]
-      .map((k) => `<span>${METRIC_ICONS[k]}<b>${fmtNum(m[k])}</b></span>`).join("");
+    metricsEl.innerHTML = ["replies", "retweets", "likes", "views", "bookmarks"]
+      .map((k) => `<span data-metric="${k}" title="${METRIC_LABELS[k]}" aria-label="${METRIC_LABELS[k]} ${m[k]}">${METRIC_ICONS[k]}<b>${fmtNum(m[k])}</b></span>`).join("");
   } else {
     metricsEl.classList.add("hidden");
   }
@@ -438,8 +459,10 @@ function renderCard() {
   const stage = $("stage");
   const isFrame = state.mode !== "card"; // poster(3:4) 或 tall(9:16)
   stage.classList.toggle("card-only", !isFrame);
-  stage.classList.toggle("tall", state.mode === "tall");
-  $("preview-label").textContent = state.mode === "card" ? "纯卡片 · 透明背景 PNG"
+  stage.classList.toggle("card-auto", !isFrame && state.cardRatio === "auto");
+  stage.classList.toggle("tall", state.mode === "tall" || (!isFrame && state.cardRatio === "9:16"));
+  $("card-ratio-option").classList.toggle("hidden", isFrame);
+  $("preview-label").textContent = state.mode === "card" ? (state.cardRatio === "auto" ? "纯卡片 · 自适应内容 · 透明背景 PNG" : `纯卡片 · ${state.cardRatio} · 1080×${state.cardRatio === "9:16" ? 1920 : 1440}`)
     : state.mode === "tall" ? "9:16 竖图 · 1080×1920" : "3:4 竖图 · 1080×1440";
   $("drag-hint").style.display = isFrame ? "" : "none";
 
@@ -454,10 +477,93 @@ function renderCard() {
 
   // 竖图模式：卡片浮动（整体缩放 + 可拖动）；长文先自动缩到画框内，再叠加用户缩放
   card.classList.toggle("floating", isFrame);
+  if (!isFrame) card.style.transform = "";
   if (isFrame) {
-    requestAnimationFrame(measureFitScale);
-  } else {
-    card.style.transform = "";
+    $("tc-content").style.width = "";
+    $("tc-content").style.transform = "";
+    $("tc-body").style.lineHeight = "";
+    $("tc-body").style.fontSize = "";
+  }
+  requestAnimationFrame(measureFitScale);
+}
+
+/* 纯卡片尊重用户字号，通过排版宽度适配比例，再整体等比缩放。 */
+function fitPureCard() {
+  const stage = $("stage"), card = $("tweet-card"), content = $("tc-content");
+  const media = $("tc-media"), body = $("tc-body");
+  content.style.width = "";
+  content.style.transform = "";
+  body.style.fontSize = "";
+  body.style.lineHeight = "";
+  stage.style.setProperty("--pure-card-height", "auto");
+  stage.style.setProperty("--pure-card-scale", state.cardScale / 100);
+  const resetMedia = () => {
+    media.classList.remove("fit", "crop");
+    media.style.maxHeight = "";
+    media.style.height = "";
+  };
+  resetMedia();
+  let width = 540 * 0.84;
+  stage.style.setProperty("--pure-card-width", width + "px");
+  if (state.cardRatio !== "auto") {
+    const ratio = state.cardRatio === "9:16" ? 9 / 16 : 3 / 4;
+    const measure = (value) => {
+      stage.style.setProperty("--pure-card-width", value + "px");
+      resetMedia();
+      if (!media.classList.contains("hidden")) {
+        const other = card.offsetHeight - media.offsetHeight;
+        media.classList.add("fit");
+        media.style.maxHeight = Math.max(MEDIA_MIN_H, value / ratio - other - 1) + "px";
+      }
+      return card.offsetHeight - value / ratio;
+    };
+    if (Math.abs(measure(width)) > 2) {
+      let low = 144, high = width;
+      while (measure(high) > 0 && high < 8192) high *= 1.5;
+      for (let i = 0; i < 18; i++) {
+        const mid = (low + high) / 2;
+        if (measure(mid) > 0) low = mid; else high = mid;
+      }
+      width = high;
+    }
+    measure(width);
+    // 换行存在离散变化，只将不足一行的余量分配到行距，不覆盖所选字号。
+    const remaining = width / ratio - card.offsetHeight;
+    if (remaining > 1) {
+      const lineHeight = parseFloat(getComputedStyle(body).lineHeight);
+      const lines = Math.max(1, Math.round(body.offsetHeight / lineHeight));
+      body.style.lineHeight = lineHeight + remaining / lines + "px";
+    }
+    stage.style.setProperty("--pure-card-height", width / ratio + "px");
+  }
+  stage.style.setProperty("--pure-stage-width", Math.max(540, width * state.cardScale / 100) + "px");
+  fitStageScale();
+  const size = pureCardSize();
+  $("preview-label").textContent = "纯卡片 · " + (state.cardRatio === "auto" ? "默认" : state.cardRatio) + " · " + size.width + "×" + size.height;
+}
+
+/* 纯卡片的导出像素跟随整体大小；固定比例以整数倍尺寸避免像素舍入改变比例。 */
+function pureCardSize() {
+  const card = $("tweet-card"), density = 3 * state.cardScale / 100;
+  if (state.cardRatio === "auto") return { width: Math.round(card.offsetWidth * density), height: Math.round(card.offsetHeight * density) };
+  const [w, h] = state.cardRatio === "9:16" ? [9, 16] : [3, 4];
+  const multiple = Math.max(1, Math.round(card.offsetWidth * density / w));
+  return { width: multiple * w, height: multiple * h };
+}
+
+/* 独立处理纯卡片的缩放与透明通道，避免触及竖图的捕获和合成。 */
+async function capturePureCardCanvas() {
+  await mediaReady();
+  fitPureCard();
+  const card = $("tweet-card"), size = pureCardSize();
+  const previousZoom = card.style.zoom;
+  card.style.zoom = "1";
+  try {
+    return await htmlToImage.toCanvas(card, {
+      pixelRatio: 1, canvasWidth: size.width, canvasHeight: size.height,
+    });
+  } finally {
+    card.style.zoom = previousZoom;
   }
 }
 
@@ -512,7 +618,8 @@ function measureFitScale() {
   const stage = $("stage");
   const card = $("tweet-card");
   const media = $("tc-media");
-  if (state.mode === "card" || !card.offsetHeight) return;
+  if (!card.offsetHeight) return;
+  if (state.mode === "card") { fitPureCard(); return; }
 
   if (media.classList.contains("hidden")) {
     media.classList.remove("fit", "crop");
@@ -674,7 +781,7 @@ function addCustomThumb(dataUrl) {
 function fitStageScale() {
   const wrap = document.querySelector(".stage-wrap");
   const stage = $("stage");
-  stage.style.zoom = Math.min(1, (wrap.clientWidth - 24) / 540);
+  stage.style.zoom = Math.min(1, (wrap.clientWidth - 24) / (state.mode === "card" ? stage.clientWidth : 540));
 }
 
 function isMobileLike() {
@@ -737,8 +844,9 @@ function mediaReady() {
 async function captureCardCanvas(pixelRatio) {
   const card = $("tweet-card");
   const hadFloating = card.classList.contains("floating");
-  const prevTransform = card.style.transform;
   await mediaReady();
+  measureFitScale();
+  const prevTransform = card.style.transform;
   card.classList.remove("floating");
   card.style.transform = "none";
   try {
@@ -789,7 +897,7 @@ async function exportPng() {
     let blob;
     if (state.mode === "card") {
       // 纯卡片：透明背景，直接光栅化卡片
-      const cardCanvas = await captureCardCanvas(3);
+      const cardCanvas = await capturePureCardCanvas();
       blob = await new Promise((res) => cardCanvas.toBlob(res, "image/png"));
     } else {
       const cv = await composePoster();
@@ -858,9 +966,11 @@ function apiToPost(p, handle) {
     metrics: {
       likes: pm.like_count || 0,
       replies: pm.reply_count || 0,
-      reposts: (pm.retweet_count || 0) + (pm.quote_count || 0),
+      retweets: pm.retweet_count || 0,
+      quotes: pm.quote_count || 0,
       bookmarks: pm.bookmark_count || 0,
       views: pm.impression_count || 0,
+      score: metricScore({ likes: pm.like_count || 0, retweets: pm.retweet_count || 0, replies: pm.reply_count || 0, bookmarks: pm.bookmark_count || 0, views: pm.impression_count || 0 }),
     },
   };
 }
@@ -925,7 +1035,7 @@ async function xSync() {
     try { localStorage.setItem(POSTS_KEY, JSON.stringify(state.posts)); }
     catch { alert("推文库太大无法保存到本机，仅本次会话有效。可让 Claude 把它写入 posts.json 持久化。"); }
 
-    saveProfileOverride({ name: user.name, handle: user.username, verified: !!(user.verified || user.verified_type === "blue") });
+    saveProfileOverride({ name: user.name, handle: user.username, verified: !!user.verified || ["blue", "business"].includes(user.verified_type), badge: user.verified_type === "business" ? "gold" : "blue" });
     try {
       const av = await fetch(user.profile_image_url.replace("_normal", "_400x400"));
       if (av.ok) {
@@ -952,16 +1062,32 @@ async function xSync() {
 
 /* ---------- 在线抓取：单条推文链接 → 推文库 ----------
    请求走同源的 /api/importer（Cloudflare Pages Function）转发，
-   因为抓取服务不发 CORS 头，浏览器直连会被预检拦掉。
+   因为抓取服务尚未允许本站来源跨域直连。
    令牌只存本机 localStorage，不进代码库也不进部署产物。 */
 
-const DEFAULT_IMPORTER_URL = "https://importer-x.hitu.me/import/twitter";
+const DEFAULT_IMPORTER_URL = "https://x-api.opc.tools/import/twitter";
+
+function normalizeImporterUrl(raw) {
+  const url = new URL(String(raw || DEFAULT_IMPORTER_URL).trim());
+  if (url.protocol !== "https:" || url.username || url.password) {
+    throw new Error("接口地址需使用不含账号密码的 HTTPS 地址");
+  }
+  if (url.search || url.hash) throw new Error("接口地址不能包含查询参数或片段");
+  if (url.pathname === "/" || url.pathname.replace(/\/+$/, "") === "/import/twitter") {
+    url.pathname = "/import/twitter";
+  } else {
+    throw new Error("请填写 API 根域名或以 /import/twitter 结尾的完整地址");
+  }
+  return url.toString();
+}
 
 function loadImporterCfg() {
   try {
     const raw = JSON.parse(localStorage.getItem(IMPORTER_KEY) || "null");
     if (raw && typeof raw === "object") {
-      return { url: raw.url || DEFAULT_IMPORTER_URL, token: raw.token || "", admin: raw.admin || "" };
+      const url = !raw.url || /^https:\/\/importer-x\.hitu\.me(?:\/import\/twitter)?\/?$/.test(raw.url)
+        ? DEFAULT_IMPORTER_URL : raw.url;
+      return { url, token: raw.token || "", admin: raw.admin || "" };
     }
   } catch { /* 忽略损坏的本机数据 */ }
   return { url: DEFAULT_IMPORTER_URL, token: "", admin: "" };
@@ -974,30 +1100,26 @@ function applyImporterCfgToInputs() {
   $("importer-admin").value = cfg.admin;
 }
 
-/* 把抓取结果映射成推文库条目。上游的 retweets 对应本项目的 reposts，是唯一需要改名的字段。
+/* 新接口的互动字段直接保留原名，正文和首图始终来自同一条主推文。
    媒体只取主推文自己的（thread.tweets[0].images/videos）——顶层 media[] 含整条 thread 的媒体。 */
 function mapImportedPost(d) {
-  const first = (d.thread && d.thread.tweets && d.thread.tweets[0]) || {};
-  const raw = first.text || d.promptText || "";
-  const m = d.metrics || {};
   const src = d.source || {};
-  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-  // 上游已把普通外链展开成明文，剩下的 t.co 都是媒体短链，留在正文里没意义
-  const text = raw.replace(/https:\/\/t\.co\/\w+/g, "").split("\n").map((l) => l.replace(/\s+$/, "")).join("\n").trim();
+  const tweets = d.thread?.tweets || [];
+  const first = tweets.find((tweet) => String(tweet.id) === String(src.tweetId)) || tweets[0] || {};
+  const text = String(first.text ?? d.text ?? d.promptText ?? "");
+  const publishedAt = first.publishedAt || d.publishedAt || d.createdAtRaw || d.date || "";
   const image = (first.images || [])[0] || "";
   const video = (first.videos || [])[0] || "";
   const post = {
     id: "x-" + (src.tweetId || String(Date.now())),
-    date: d.date || todayISO(),
-    datetime: d.createdAtRaw || d.date || "",
+    date: /^\d{4}-\d{2}-\d{2}/.test(publishedAt) ? publishedAt.slice(0, 10) : todayISO(),
+    datetime: publishedAt,
     text,
     long: text.length > 300,
     sourceUrl: src.url || "",
     topic: "在线抓取",
-    metrics: {
-      likes: num(m.likes), replies: num(m.replies), reposts: num(m.retweets),
-      bookmarks: num(m.bookmarks), views: num(m.views),
-    },
+    metrics: normalizeMetrics(d.metrics || first),
+    metricsAvailable: !!d.metrics || METRIC_KEYS.some((key) => Object.hasOwn(first, key)),
   };
   // 视频不进卡片（只记录来源），卡片上用的是封面图
   if (image || video) post.media = { image, video };
@@ -1023,12 +1145,13 @@ async function fetchTweetByUrl() {
   btn.disabled = true;
   status.textContent = "抓取中…最长约 90 秒";
   try {
+    const endpoint = normalizeImporterUrl(cfg.url);
     const res = await fetch("/api/importer", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Importer-Token": cfg.token,
-        "X-Importer-Url": cfg.url,
+        "X-Importer-Url": endpoint,
         "X-Admin-Password": cfg.admin,
       },
       body: JSON.stringify({ url }),
@@ -1050,6 +1173,8 @@ async function fetchTweetByUrl() {
         msg || `抓取失败（HTTP ${res.status}）`
       );
     }
+
+    if (data.ok === false) throw new Error(data.error || "抓取服务未返回有效推文");
 
     const post = mapImportedPost(data);
     if (!post.text) throw new Error("抓到了但正文是空的，可能是这条推文只有图片");
@@ -1215,16 +1340,48 @@ function bind() {
 
   $("custom-reseed").onclick = () => { primeCustomText(true); renderCard(); };
 
+  $("library-toggle").onclick = () => {
+    const open = $("library-settings").classList.toggle("hidden") === false;
+    $("library-browser").classList.toggle("hidden", open);
+    $("library-toggle").setAttribute("aria-expanded", String(open));
+  };
+  const libraryTabs = ["import", "export", "default"];
+  bindSegmented(libraryTabs.map((tab) => [$("library-tab-" + tab), tab]), (selected) => {
+    libraryTabs.forEach((tab) => {
+      const active = tab === selected;
+      $("library-panel-" + tab).classList.toggle("hidden", !active);
+      $("library-tab-" + tab).setAttribute("aria-selected", String(active));
+      $("library-tab-" + tab).tabIndex = active ? 0 : -1;
+    });
+    $("library-status").textContent = "";
+  });
+  libraryTabs.forEach((tab, index) => {
+    $("library-tab-" + tab).onkeydown = (e) => {
+      const next = { ArrowRight: (index + 1) % 3, ArrowLeft: (index + 2) % 3, Home: 0, End: 2 }[e.key];
+      if (next === undefined) return;
+      e.preventDefault();
+      $("library-tab-" + libraryTabs[next]).focus();
+      $("library-tab-" + libraryTabs[next]).click();
+    };
+  });
+
   $("fetch-go").onclick = fetchTweetByUrl;
   $("fetch-url").onkeydown = (e) => { if (e.key === "Enter") fetchTweetByUrl(); };
   $("importer-toggle").onclick = () => $("importer-settings").classList.toggle("hidden");
   $("importer-save").onclick = () => {
-    const url = $("importer-url").value.trim() || DEFAULT_IMPORTER_URL;
-    const token = $("importer-token").value.trim();
-    const admin = $("importer-admin").value.trim();
-    localStorage.setItem(IMPORTER_KEY, JSON.stringify({ url, token, admin }));
+    try {
+      const url = normalizeImporterUrl($("importer-url").value);
+      const token = $("importer-token").value.trim();
+      const admin = $("importer-admin").value.trim();
+      localStorage.setItem(IMPORTER_KEY, JSON.stringify({ url, token, admin }));
+      $("importer-url").value = url;
+      $("fetch-status").textContent = token ? "设置已保存到本机" : "已保存（令牌为空）";
+    } catch (err) {
+      $("importer-status").textContent = "保存失败：" + err.message;
+      return;
+    }
+    $("importer-status").textContent = "";
     $("importer-settings").classList.add("hidden");   // 保存即收起，再点齿轮展开
-    $("fetch-status").textContent = token ? "设置已保存到本机" : "已保存（令牌为空）";
     setTimeout(() => { if ($("fetch-status").textContent.startsWith("设置已保存") || $("fetch-status").textContent.startsWith("已保存")) $("fetch-status").textContent = ""; }, 2500);
   };
   $("importer-clear").onclick = () => {
@@ -1233,7 +1390,13 @@ function bind() {
     $("importer-status").textContent = "已清除本机保存的配置";
   };
 
-  bindSegmented([[$("mode-poster"), "poster"], [$("mode-tall"), "tall"], [$("mode-card"), "card"]], (v) => { state.mode = v; renderCard(); });
+  bindSegmented([[$("mode-poster"), "poster"], [$("mode-tall"), "tall"], [$("mode-card"), "card"]], (v) => {
+    const leavingPureCard = state.mode === "card" && v !== "card";
+    state.mode = v;
+    renderCard();
+    if (leavingPureCard) fitStageScale();
+  });
+  bindSegmented([[$("card-ratio-auto"), "auto"], [$("card-ratio-poster"), "3:4"], [$("card-ratio-tall"), "9:16"]], (v) => { state.cardRatio = v; renderCard(); });
   bindSegmented([[$("theme-light"), "light"], [$("theme-dark"), "dark"]], (v) => { state.theme = v; renderCard(); });
   bindSegmented([[$("metrics-on"), true], [$("metrics-off"), false]], (v) => { state.metricsOn = v; renderCard(); });
   bindSegmented([[$("media-on"), true], [$("media-off"), false]], (v) => { state.mediaOn = v; renderCard(); });
@@ -1332,20 +1495,30 @@ function bind() {
   /* ---- 账号信息 ---- */
   $("profile-name").oninput = (e) => { saveProfileOverride({ name: e.target.value || DEFAULT_PROFILE.name }); renderCard(); };
   $("profile-handle").oninput = (e) => { saveProfileOverride({ handle: e.target.value.replace(/^@+/, "") || DEFAULT_PROFILE.handle }); renderCard(); };
-  $("badge-on").onclick = () => saveProfileOverride({ verified: true });
-  $("badge-off").onclick = () => saveProfileOverride({ verified: false });
+  $("badge-on").onclick = () => { saveProfileOverride({ verified: true, badge: "blue" }); refreshAgentPrompt(); };
+  $("badge-gold").onclick = () => { saveProfileOverride({ verified: true, badge: "gold" }); refreshAgentPrompt(); };
+  $("badge-off").onclick = () => { saveProfileOverride({ verified: false, badge: "none" }); refreshAgentPrompt(); };
 
   $("avatar-upload").onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => saveProfileOverride({ avatarData: reader.result });
+    reader.onload = () => { saveProfileOverride({ avatarData: reader.result }); refreshAgentPrompt(); };
     reader.readAsDataURL(file);
+  };
+
+  $("profile-reset").onclick = async () => {
+    localStorage.removeItem(PROFILE_KEY);
+    state.profile = { ...DEFAULT_PROFILE };
+    $("avatar-upload").value = "";
+    await loadProfile(false);
+    renderCard();
   };
 
   $("posts-upload").onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    e.target.value = "";
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -1354,21 +1527,28 @@ function bind() {
         const posts = normalizePosts(arr);
         if (!posts.length) throw new Error("没有找到带 text 字段的条目");
         state.posts = posts;
-        try { localStorage.setItem(POSTS_KEY, JSON.stringify(posts)); }
-        catch { alert("推文库太大，无法保存到本机，仅本次会话有效。想永久使用请把文件存为项目里的 posts.json"); }
+        localStorage.removeItem(XSYNC_KEY);
+        try {
+          localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+          $("library-status").textContent = `已导入 ${posts.length} 条，已保存到当前浏览器。`;
+        } catch {
+          $("library-status").textContent = "浏览器空间不足，导入仅本次会话有效，请导出 JSON 备份。";
+        }
+        state.search = "";
+        $("search").value = "";
         state.chip = { kind: "all", v: "" };
         state.month = "";
         refreshLibrary();
         selectPost(state.posts[0]);
       } catch (err) {
-        alert("导入失败：" + err.message + "\n格式见 README：[{\"date\":\"2026-01-01\",\"text\":\"...\"}]");
+        $("library-status").textContent = "导入失败：" + err.message;
       }
     };
+    reader.onerror = () => { $("library-status").textContent = "文件读取失败，请重新选择 JSON 文件。"; };
     reader.readAsText(file);
   };
 
-  /* 导出推文库：抓到的推文只在本机 localStorage，导出后替换项目里的 posts.json
-     再部署，才算真正沉淀进库 */
+  /* 导出完整本机推文库为文件备份，不发送网络请求。 */
   $("posts-export").onclick = () => {
     const blob = new Blob([JSON.stringify(state.posts, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -1378,8 +1558,7 @@ function bind() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
-  $("profile-reset").onclick = () => {
-    localStorage.removeItem(PROFILE_KEY);
+  $("posts-reset").onclick = () => {
     localStorage.removeItem(POSTS_KEY);
     localStorage.removeItem(XSYNC_KEY);
     location.reload();
@@ -1402,7 +1581,7 @@ async function loadPosts() {
   // 优先级：本机导入的库 → posts.json → posts.sample.json（示例数据）
   try {
     const saved = JSON.parse(localStorage.getItem(POSTS_KEY) || "null");
-    if (Array.isArray(saved) && saved.length) return saved;
+    if (Array.isArray(saved) && saved.length) return normalizePosts(saved);
   } catch { /* 忽略损坏的本机数据 */ }
   for (const src of ["posts.json", "posts.sample.json"]) {
     try {
@@ -1434,6 +1613,7 @@ function syncToggleButtons() {
   pick("guides-on", "guides-off", state.guidesOn);
   pick("theme-light", "theme-dark", state.theme === "light");
   ["poster", "tall", "card"].forEach((m) => $("mode-" + m).classList.toggle("active", state.mode === m));
+  [["auto", "auto"], ["poster", "3:4"], ["tall", "9:16"]].forEach(([id, ratio]) => $("card-ratio-" + id).classList.toggle("active", state.cardRatio === ratio));
 }
 
 /* 把滑块已选比例写进 --fill，供 CSS 画填充色。
@@ -1486,7 +1666,10 @@ async function applyUrlParams() {
 
   if (q.get("name")) state.profile.name = q.get("name");
   if (q.get("handle")) state.profile.handle = q.get("handle").replace(/^@+/, "");
-  if (q.has("verified")) state.profile.verified = q.get("verified") !== "0";
+  if (q.has("verified")) {
+    state.profile.verified = q.get("verified") !== "0";
+    state.profile.badge = q.get("verified") === "gold" ? "gold" : "blue";
+  }
   if (q.get("avatar")) {
     const data = await fetchAsDataUrl(q.get("avatar"));
     if (data) state.profile.avatarData = data;
@@ -1498,6 +1681,7 @@ async function applyUrlParams() {
 
   const mode = q.get("mode");
   if (["poster", "tall", "card"].includes(mode)) state.mode = mode;
+  if (["auto", "3:4", "9:16"].includes(q.get("ratio"))) state.cardRatio = q.get("ratio");
   if (q.get("theme") === "dark") state.theme = "dark";
   if (q.has("scale")) state.cardScale = clampNum(q.get("scale"), 50, 140, state.cardScale);
   if (q.has("opacity")) state.cardOpacity = clampNum(q.get("opacity"), 30, 100, state.cardOpacity);
@@ -1510,9 +1694,9 @@ async function applyUrlParams() {
   if (q.get("guides") === "0") state.guidesOn = false;
 
   if (q.get("metrics") === "off") state.metricsOn = false;
-  const MET = ["likes", "reposts", "replies", "bookmarks", "views"];
-  if (MET.some((k) => q.has(k))) {
-    MET.forEach((k) => { if (q.has(k)) state.fakeMetrics[k] = clampNum(q.get(k), 0, 1e9, state.fakeMetrics[k]); });
+  if (METRIC_KEYS.some((k) => q.has(k)) || q.has("reposts")) {
+    state.fakeMetrics = normalizeMetrics(Object.fromEntries(q));
+    state.metricsIsReal = true;
   }
 
   const bg = await resolveBgParam(q.get("bg"));
@@ -1533,7 +1717,7 @@ async function runEmbed() {
     await mediaReady();
     measureFitScale();
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const cv = state.mode === "card" ? await captureCardCanvas(3) : await composePoster();
+    const cv = state.mode === "card" ? await capturePureCardCanvas() : await composePoster();
     const dataUrl = cv.toDataURL("image/png");
     window.__cardDataUrl = dataUrl;
     window.__cardSize = { width: cv.width, height: cv.height };
@@ -1561,17 +1745,22 @@ function refreshAgentPrompt() {
 
 /* 生成一段可以整个发给 AI Agent 的指令 */
 function buildAgentPrompt() {
+  const notes = [];
+  if (state.profile.avatarData) notes.push("当前使用本机头像，链接未包含该图片；需要同样头像时，请另附文件或提供可跨域访问的图片 URL，填入 avatar 参数。");
+  if (state.mode !== "card" && state.bg && !state.bg.startsWith("backgrounds/")) notes.push("当前自定义背景未包含在链接中；请另附背景文件或提供可跨域访问的图片 URL，填入 bg 参数。未补充时使用站点默认背景。");
+  if (["localhost", "127.0.0.1", "[::1]"].includes(location.hostname)) notes.push("这是本地地址，仅同一台电脑上的 Agent 能直接访问。远程 Agent 可将链接和文档的站点地址改为 https://tcs.opc.tools，需确保线上版本已更新。");
   return [
     "帮我用这个网页工具生成一张推文卡片图片，步骤：",
     "",
-    "1. 用浏览器打开下面这个链接（已包含我调好的全部样式）：",
+    "1. 用浏览器打开下面这个链接（包含正文、账号文字、徽章、样式及互动数据）：",
     buildShareUrl(true),
     "",
-    '2. 等待页面上 document.documentElement.dataset.ready 变成 "1"',
-    '   （如果变成 "error"，失败原因在 window.__cardError）',
+    '2. 等待 document.documentElement.dataset.ready 变成 "1" 或 "error"。',
+    '   如果是 "error"，读取 window.__cardError 并报告失败，不要继续保存图片。',
     "",
     "3. 读取 window.__cardDataUrl，它是 data:image/png;base64,... 格式，",
     "   把逗号后面的 base64 解码保存为 PNG 文件即可。尺寸见 window.__cardSize。",
+    ...notes.flatMap((note) => ["", note]),
     "",
     "要换文案或样式，改链接里的参数就行，完整参数说明：" + location.origin + "/llms.txt",
   ].join("\n");
@@ -1582,13 +1771,14 @@ function buildShareUrl(embed) {
   const content = effectiveContent();
   if (content.text) q.set("text", content.text);
   if (content.image) q.set("img", content.image);
-  // 不是今天才写：卡片显示的是来源推文的发布日期，不带上的话打开链接会变成打开当天
+  // 始终固定日期和账号文字，避免跨天打开或接收方本机配置改变分享结果。
   const date = currentDate();
-  if (date && date !== todayISO()) q.set("date", date);
-  if (state.profile.name !== DEFAULT_PROFILE.name) q.set("name", state.profile.name);
-  if (state.profile.handle !== DEFAULT_PROFILE.handle) q.set("handle", state.profile.handle);
-  if (!state.profile.verified) q.set("verified", "0");
+  if (date) q.set("date", date);
+  q.set("name", state.profile.name);
+  q.set("handle", state.profile.handle);
+  q.set("verified", !state.profile.verified ? "0" : state.profile.badge === "gold" ? "gold" : "1");
   if (state.mode !== "poster") q.set("mode", state.mode);
+  if (state.mode === "card") q.set("ratio", state.cardRatio);
   if (state.theme !== "light") q.set("theme", state.theme);
   // 与初始默认值一致的项不写进链接，保持简短（省略时页面会用同样的默认值）
   if (state.cardScale !== 95) q.set("scale", state.cardScale);
@@ -1599,6 +1789,8 @@ function buildShareUrl(embed) {
   if (Math.round(state.cardX) !== DEFAULT_CARD_X) q.set("x", Math.round(state.cardX));
   if (Math.round(state.cardY) !== DEFAULT_CARD_Y) q.set("y", Math.round(state.cardY));
   if (!state.metricsOn) q.set("metrics", "off");
+  if (state.fakeMetrics) METRIC_KEYS.forEach((key) => q.set(key, state.fakeMetrics[key]));
+  if (!state.guidesOn) q.set("guides", "0");
   if (state.bg && state.bg.startsWith("backgrounds/")) q.set("bg", state.bg.replace("backgrounds/", "").replace(/\.(jpg|jpeg|png|svg)$/, ""));
   if (embed) q.set("embed", "1");
   return location.origin + location.pathname + "?" + q.toString();
@@ -1606,11 +1798,13 @@ function buildShareUrl(embed) {
 
 async function init() {
   const q = new URLSearchParams(location.search);
+  const embedRequested = q.get("embed") === "1";
+  if (embedRequested && !q.get("text")?.trim()) throw new Error("embed 渲染需要非空 text 参数");
   // embed 模式忽略本机 localStorage（保留 profile.json 默认身份），
   // 保证同一条链接在任何设备上结果一致
   await loadProfile(q.get("embed") !== "1");
 
-  state.posts = await loadPosts();
+  state.posts = embedRequested ? [] : await loadPosts();
   try { state.backgrounds = await fetch("backgrounds/manifest.json").then((r) => r.json()); } catch { state.backgrounds = []; }
   rollMetrics();
 
@@ -1619,6 +1813,11 @@ async function init() {
   // 默认背景取清单第一条。URL 参数已指定时不覆盖。
   // 这件事以前藏在 renderBackgroundGrid() 里，网格改成会反复重渲染后必须挪出来。
   if (!state.bg && state.backgrounds.length) setBg("backgrounds/" + state.backgrounds[0].file);
+
+  if (embed) {
+    await runEmbed();
+    return;
+  }
 
   refreshLibrary();
   bind();
@@ -1632,7 +1831,13 @@ async function init() {
   if (state.tab === "custom") { $("custom-text").value = state.customText; $("tab-custom").click(); }
   else if (state.filtered.length || state.posts.length) selectPost(state.filtered[0] || state.posts[0]);
 
-  if (embed) runEmbed();
 }
 
-init();
+init().catch((err) => {
+  if (new URLSearchParams(location.search).get("embed") === "1") {
+    window.__cardError = String(err && err.message ? err.message : err);
+    document.documentElement.dataset.ready = "error";
+  } else {
+    console.error("页面初始化失败：", err);
+  }
+});

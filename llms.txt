@@ -6,56 +6,63 @@
 ## 推文卡片生成器 (Tweet Card Generator)
 
 把一段文字渲染成推特(X)风格的卡片图片，叠加背景，输出可直接发布到抖音/小红书的竖图 PNG。
-全部在浏览器本地渲染，无需 API Key，无服务端调用。
+卡片在浏览器本地渲染，使用 URL 参数生成图片无需 API Key。在线抓取是独立功能，需要访问令牌并经本站 Cloudflare Function 转发。
 
-页面: 本项目 index.html（官方部署：https://tools.upthos.com/tweet-card）
+页面: 本项目 index.html（正式地址：https://tcs.opc.tools）
 
 ### Agent 调用方式
 
 用浏览器能力（Playwright / Puppeteer / 浏览器 MCP / computer-use 均可）执行三步：
 
-1. 打开 `<你的部署地址>/tweet-card?embed=1&text=<文字>&bg=<背景>&mode=<尺寸>`
-   （`embed=1` 会隐藏所有界面，只渲染成品）
-2. 等待 `document.documentElement.dataset.ready === "1"`（失败时为 `"error"`，原因在 `window.__cardError`）
-3. 读取 `window.__cardDataUrl` —— 一个 `data:image/png;base64,...` 字符串，即成品图；
-   尺寸在 `window.__cardSize`（`{width, height}`）。把 base64 解码写入文件即可。
+1. 打开 `https://tcs.opc.tools/?embed=1&text=<文字>&bg=<背景>&mode=<尺寸>`
+   （`embed=1` 要求非空 `text`，会隐藏所有界面，只渲染成品）
+2. 等待 `document.documentElement.dataset.ready` 变为 `"1"` 或 `"error"`；错误时读取 `window.__cardError` 并停止保存
+3. 成功后读取 `window.__cardDataUrl`（`data:image/png;base64,...`）与 `window.__cardSize`（`{width, height}`），将 base64 解码写入 PNG 文件。
 
-也可以直接对页面截图，`embed=1` 下页面内容只有成品图本身。
+优先保存生成的 base64 PNG；页面截图不能保证原始像素尺寸和透明通道。空正文、初始化或渲染失败均返回 `ready="error"`；合法 embed 不加载推文库、不绑定普通设置界面、不回填本机设置，也不读取 localStorage。
 
 示例（Playwright / Node）:
 
 ```js
-await page.goto('<你的部署地址>/tweet-card?embed=1&text=' + encodeURIComponent('这是一条推文') + '&bg=bj_11-forest-path&mode=tall');
-await page.waitForFunction(() => document.documentElement.dataset.ready);
-const dataUrl = await page.evaluate(() => window.__cardDataUrl);
-require('fs').writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base64'));
+const fs = require('node:fs');
+await page.goto('https://tcs.opc.tools/?embed=1&text=' + encodeURIComponent('这是一条推文') + '&bg=bj_11-forest-path&mode=tall');
+await page.waitForFunction(() => ['1', 'error'].includes(document.documentElement.dataset.ready));
+const result = await page.evaluate(() => ({
+  dataUrl: window.__cardDataUrl,
+  size: window.__cardSize,
+  error: window.__cardError,
+}));
+if (result.error || !result.dataUrl) throw new Error(result.error || '图片生成失败');
+fs.writeFileSync('card.png', Buffer.from(result.dataUrl.split(',')[1], 'base64'));
+console.log('导出尺寸：', result.size);
 ```
 
 ### URL 参数
 
 内容
-- `text` — 卡片正文，必填。支持换行（`\n`），URL 编码。链接/@提及/#话题会自动渲染成蓝色
+- `text` — 卡片正文，embed 模式必填且不能只有空白。支持换行（`\n`），URL 编码。链接/@提及/#话题会自动渲染成蓝色
 - `date` — 卡片显示的日期，格式 `2026-08-20`，默认今天
 
 身份
 - `name` — 显示名称，默认「你的名字」
-- `handle` — 用户名，不带 @，默认 `yourname`
-- `verified` — `0` 关闭蓝色认证徽章，默认开启
-- `avatar` — 头像图片 URL（需允许跨域访问，取不到时回退为默认头像）
+- `handle` — 用户名，不带 @，默认 `UserName_ID`
+- `verified` — `1` 蓝 V（默认）| `gold` 金 V | `0` 无认证徽章
+- `avatar` — 头像图片 URL（需允许跨域访问，取不到时回退为默认头像 `OPC-TCS_logo.png`）。本机上传的头像不会自动随分享链接携带，需要另附文件或手动提供此参数
 
 尺寸与样式
-- `mode` — `poster`(3:4, 1080×1440, 默认) | `tall`(9:16, 1080×1920) | `card`(纯卡片，透明背景 PNG)
+- `mode` — `poster`(3:4, 1080×1440, 默认) | `tall`(9:16, 1080×1920) | `card`(纯卡片 PNG，不叠加背景图)
+- `ratio` — 仅 `mode=card` 生效，对应「默认 / 3:4 / 9:16」三档。省略或 `auto` 时基础宽度为 453.6px，高度随内容；`3:4` / `9:16` 保留所选正文字号，根据内容调整自然排版宽度和首图以匹配比例，只留常规内边距。纯卡片 PNG 尺寸随内容和 `scale` 变化，预览顶部及 `window.__cardSize` 显示实际导出尺寸；固定档按整数倍像素尺寸保持精确比例，不额外延展上下留白
 - `theme` — `light`(默认) | `dark`
-- `scale` — 卡片整体大小，50–140，默认 95
+- `scale` — 卡片整体大小，50–140，默认 95。纯卡片三档均对整张卡片等比缩放，同时改变导出像素尺寸
 - `opacity` — 卡片不透明度，30–100，默认 90
-- `fontsize` — 正文基准字号（px），14–22，默认 17。超长文本仍会在此基础上自动降档，不会溢出画框
+- `fontsize` — 正文基准字号（px），14–22，默认 17，保留原有文本长度档位倍率。纯卡片三档均使用所选字号，固定比例通过排版宽度适配，不覆盖字号；竖图仍按原逻辑自动适配长文
 - `dim` — 背景压暗，0–55，默认 10。纯卡片模式（`mode=card`）无背景，此参数不生效
 - `img` — 推文配图 URL（需允许跨域访问）。显示在正文下方，圆角撞满卡片宽，竖图会封顶裁切。在界面「自由编辑」里直接把图片直链贴进正文也会被自动识别成配图（并从正文中摘掉）
 - `media` — `off` 时不显示配图
-- `x` / `y` — 卡片相对画面中心的偏移像素，可为负
+- `x` / `y` — 仅竖图 `poster` / `tall` 生效，卡片相对画面中心的偏移像素，可为负
 
 背景
-- `bg` — 内置背景的 slug，或任意图片 URL（需允许跨域访问）
+- `bg` — 内置背景的 slug，或任意图片 URL（需允许跨域访问）。自定义背景不会自动随分享链接携带，需另附文件或手动提供此参数；省略时使用站点默认背景
 
   图库共 152 张：照片 `bj_1` – `bj_142`，渐变 `bj_143` – `bj_152`。
   **完整清单（文件名 + 中文名 + 搜索关键词）见 `<你的部署地址>/backgrounds/manifest.json`**，
@@ -74,12 +81,14 @@ require('fs').writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base
   `bj_147-violet-night` `bj_148-slate` `bj_149-plum-smoke` `bj_150-midnight`
   `bj_151-paper-warm` `bj_152-mist`
 
-互动数据（卡片底部的回复/转发/点赞/收藏/浏览数字，默认随机生成）
-- `metrics=off` — 完全隐藏这一行
-- `likes` / `reposts` / `replies` / `bookmarks` / `views` — 指定具体数字
+互动数据（卡片底部依次显示回复/转推/点赞/浏览/收藏五项；导入、导出和分享仍保留接口的七个原始字段）
+- `metrics=off` — 完全隐藏这一行；分享链接仍保留七项数值，重新开启显示时可恢复
+- `likes` / `views` / `retweets` / `replies` / `bookmarks` / `quotes` / `score` — 指定具体数字，0 也是有效值；指定任一字段时，其余未提供字段为 0
+- `quotes` / `score` — 保留在数据和分享参数中，不在卡片底部显示
+- `reposts` — 仅兼容旧链接；新链接请使用 `retweets`，同时提供时 `retweets` 优先
 
 其他
-- `embed` — `1` 进入无界面渲染模式（Agent 用这个）
+- `embed` — `1` 进入无界面渲染模式，要求非空 `text`；失败时检查 `ready="error"` 与 `window.__cardError`
 - `guides` — `0` 关闭抖音安全区参考线（参考线本来就不会进成品，仅影响预览）
 
 ### 完整示例
@@ -87,11 +96,17 @@ require('fs').writeFileSync('card.png', Buffer.from(dataUrl.split(',')[1], 'base
 深色卡片 + 城市夜景 + 9:16 + 指定数据:
 
 ```
-<你的部署地址>/tweet-card?embed=1&text=%E8%AF%B4%E4%B8%AA%E6%9A%B4%E8%AE%BA&name=Ray%20Wang&handle=wangray&mode=tall&theme=dark&bg=bj_16-london-night&likes=5309&views=160000
+https://tcs.opc.tools/?embed=1&text=%E8%AF%B4%E4%B8%AA%E6%9A%B4%E8%AE%BA&name=Ray%20Wang&handle=wangray&mode=tall&theme=dark&bg=bj_16-london-night&likes=5309&views=160000
 ```
 
 ### 说明
 
-- 卡片上的互动数据默认是随机生成的，不代表真实数据
+- 卡片优先使用推文携带的真实互动数据，包括全 0；缺少数据时才随机生成。「换一组数据」可主动改为随机值。手工 URL 未指定任何互动字段时，重复渲染可能得到不同数字；需要重复生成相同数据时，请填写七项数值或使用「复制链接」
+- 在线抓取默认接口为 `https://x-api.opc.tools/import/twitter`，设置中也支持根域名 `https://x-api.opc.tools`，会自动补全接口路径。使用主推文原文、换行与首图，保留七项互动字段
+- 账号信息、接口地址和访问令牌只在本机浏览器持久保存，保存设置本身不发送请求；抓取时令牌经本站 Cloudflare Function 转发给所填 API，本站不持久保存或写入仓库
+- 「复制链接」始终显式写入当前 `name` / `handle` / `date` / `verified` 和七项互动数值，`metrics=off` 时也保留数值；纯卡片默认档写入 `ratio=auto`，关闭参考线时写入 `guides=0`。不包含访问令牌、本机上传头像或自定义背景；embed 渲染忽略本机 localStorage
+- 本地环回地址仅同一台电脑上的 Agent 可访问；远程调用需将站点地址改为 `https://tcs.opc.tools`，并确认部署版本已包含所需功能。图片生成在浏览器完成，加载页面、外部图片和在线抓取仍会按需发送网络请求
+- 左侧 02「导入 / 导出 / 默认」打开推文库管理面板：导入替换本机库，导出完整库到设备；恢复默认推文库只清本机库和同步记录。左侧 03 头像上传右侧的「恢复默认」只恢复默认账号信息；这两项操作均保留接口设置和令牌
 - 生成的图片包含推特风格界面，请自行确认使用场景合规
-- 开源代码: https://github.com/imraywang/tweet-card
+- 本项目代码: https://github.com/iBigQiang/OPC-TCS
+- 上游项目: https://github.com/imraywang/tweet-card

@@ -1,9 +1,8 @@
 /* 抓取推文的同源转发层（Cloudflare Pages Function → /api/importer）。
-   存在的唯一理由：importer-x 服务不发 CORS 头（OPTIONS 预检直接 405），
-   浏览器没法直连，必须由服务端中转。 */
+   为浏览器无法跨域直连的接口提供中转，访问令牌仅用于本次上游请求。 */
 
-const DEFAULT_UPSTREAM = "https://importer-x.hitu.me/import/twitter";
-const DEFAULT_ALLOW_HOSTS = ["importer-x.hitu.me"];
+const DEFAULT_UPSTREAM = "https://x-api.opc.tools/import/twitter";
+const DEFAULT_ALLOW_HOSTS = ["x-api.opc.tools", "importer-x.hitu.me"];
 
 /* 上游地址允许前端配置，所以必须白名单校验：否则这个 Function 就是一个
    开放代理，任何人都能借 Cloudflare 的出口去打任意地址（SSRF）。 */
@@ -20,6 +19,10 @@ function resolveUpstream(raw, env) {
   if (u.protocol !== "https:") return { error: "接口地址必须是 https" };
   if (!hosts.includes(u.hostname)) {
     return { error: `接口地址 ${u.hostname} 不在允许列表内（${hosts.join(", ")}）` };
+  }
+  // 根域名和完整接口地址统一到同一路径，兼容用户粘贴的末尾斜杠。
+  if (u.pathname === "/" || /^\/import\/twitter\/+$/u.test(u.pathname)) {
+    u.pathname = "/import/twitter";
   }
   return { url: u.toString() };
 }

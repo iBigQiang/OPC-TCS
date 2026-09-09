@@ -91,6 +91,19 @@ def main():
         created = datetime.strptime(p["created_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
         local = created + timedelta(hours=8)  # 北京时间
         pm = p.get("public_metrics", {}) or {}
+        metrics = {
+            "likes": pm.get("like_count", 0),
+            "retweets": pm.get("retweet_count", 0),
+            "replies": pm.get("reply_count", 0),
+            "views": pm.get("impression_count", 0),
+            "bookmarks": pm.get("bookmark_count", 0),
+            "quotes": pm.get("quote_count", 0),
+        }
+        # 与导入接口保持一致，引用数单独保存，不计入转推数或评分。
+        metrics["score"] = int(
+            metrics["likes"] + metrics["retweets"] * 2 + metrics["replies"] * 3
+            + metrics["bookmarks"] * 4 + metrics["views"] / 1000
+        )
         out.append({
             "id": p["id"],
             "date": local.strftime("%Y-%m-%d"),
@@ -99,13 +112,7 @@ def main():
             "long": bool(p.get("note_tweet")),
             "sourceUrl": p.get("url") or f"https://x.com/{handle}/status/{p['id']}",
             "topic": classify(text),
-            "metrics": {
-                "likes": pm.get("like_count", 0),
-                "replies": pm.get("reply_count", 0),
-                "reposts": pm.get("retweet_count", 0) + pm.get("quote_count", 0),
-                "bookmarks": pm.get("bookmark_count", 0),
-                "views": pm.get("impression_count", 0),
-            },
+            "metrics": metrics,
         })
 
     out.sort(key=lambda x: x["id"], reverse=True)

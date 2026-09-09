@@ -73,10 +73,15 @@ a:hover { color: var(--accent-hover); }
 .section-heading h2 { font-size: 0.95rem; font-weight: 700; }
 .section-heading h2 em { font-style: normal; color: var(--muted); font-weight: 500; font-size: 0.75rem; }
 .section-heading p { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
-/* 标题行右侧的小动作按钮（如设置齿轮）：margin-left:auto 推到最右，不动原有 flex 规则 */
+/* 标题行右侧的小动作按钮（如抓取设置）：margin-left:auto 推到最右，不动原有 flex 规则 */
 .heading-action { margin-left: auto; width: 30px; height: 30px; line-height: 1; font-size: 0.9rem; flex-shrink: 0; align-self: center; }
 .importer-settings { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.75rem; border: 1px dashed var(--border); border-radius: 10px; background: var(--bg); }
 .importer-settings code { font-size: 0.72rem; background: var(--card); padding: 0.1rem 0.3rem; border-radius: 4px; }
+.library-action { width: auto; height: auto; line-height: 1.4; font-size: 0.7rem; padding: 0.3rem 0.45rem; white-space: nowrap; }
+#library-section .section-heading > div { min-width: 0; }
+.library-browser, .library-settings, .library-panel { display: flex; flex-direction: column; gap: 0.75rem; }
+.library-settings { padding: 0.75rem; border: 1px dashed var(--border); border-radius: 10px; background: var(--bg); }
+#library-status:empty { display: none; }
 .hidden { display: none !important; }
 
 .segmented { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; gap: 3px; }
@@ -258,10 +263,13 @@ a.ghost-btn:hover { color: var(--text); }
 .sg-label-right { right: 39px; top: 322.5px; transform: translate(50%, -50%) rotate(90deg); }
 .stage.tall .sg-label-right { top: 449px; }
 
-.stage.card-only { height: auto; min-height: 0; box-shadow: none; overflow: visible; }
+.stage.card-only { width: var(--pure-stage-width, 540px); height: auto; min-height: 0; box-shadow: none; overflow: visible; }
 .stage.card-only .stage-bg { display: none; }
 .stage.card-only .stage-dim { display: none; }   /* 没背景可压，留着会变成一块凭空的黑幕 */
-.stage.card-only .tweet-card { box-shadow: 0 18px 50px rgba(28, 25, 23, 0.28); }
+.stage.card-only .tweet-card { width: var(--pure-card-width, 453.6px); height: var(--pure-card-height, auto); padding: 22px 24px; zoom: var(--pure-card-scale, 1); flex-shrink: 0; overflow: visible; box-shadow: 0 18px 50px rgba(28, 25, 23, 0.28); }
+.stage.card-only .tc-content { position: static; }
+.stage.card-only .tc-handle,
+.stage.card-only .tc-name span { overflow-wrap: anywhere; }
 .stage .tweet-card.floating { position: absolute; left: 50%; top: 50%; cursor: grab; touch-action: none; margin-left: -4px; }
 .stage .tweet-card.floating:active { cursor: grabbing; }
 .stage .tweet-card.floating.dragging { user-select: none; }
@@ -272,7 +280,7 @@ a.ghost-btn:hover { color: var(--text); }
 .tc-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
 .tc-id { flex: 1; min-width: 0; }
 .tc-name { font-weight: 700; font-size: 15.5px; display: flex; align-items: center; gap: 4px; }
-.tc-badge { width: 17px; height: 17px; }
+.tc-badge { width: 17px; height: 17px; flex: none; }
 .tc-handle { color: #536471; font-size: 13.5px; margin-top: 1px; }
 .tc-x-brand { display: flex; align-items: center; align-self: flex-start; color: #0f1419; }
 .tc-x-logo { width: 20px; height: 20px; }
@@ -293,9 +301,9 @@ a.ghost-btn:hover { color: var(--text); }
 .tc-media.fit { width: auto; max-width: 100%; }
 .tc-media.crop { width: 100%; object-fit: cover; object-position: top center; }
 .tc-media.hidden { display: none; }
-.tc-metrics { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eff3f4; display: flex; gap: 18px; color: #536471; font-size: 12.5px; }
+.tc-metrics { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eff3f4; display: flex; flex-wrap: wrap; gap: 8px 12px; color: #536471; font-size: 12.5px; }
 .tc-metrics span { display: inline-flex; align-items: center; gap: 5px; }
-.tc-metrics svg { width: 15px; height: 15px; fill: currentColor; }
+.tc-metrics svg { width: 15px; height: 15px; flex: 0 0 15px; fill: currentColor; }
 .tc-metrics b { color: #0f1419; font-weight: 600; }
 .tc-metrics.hidden { display: none; }
 .tweet-card.dark { background: #000; color: #e7e9ea; }

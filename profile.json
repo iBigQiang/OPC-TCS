@@ -1,6 +1,7 @@
 {
-  "name": "强子手记",
-  "handle": "iBigQiang",
-  "avatar": "avatar.jpg",
-  "verified": true
+  "name": "你的名字",
+  "handle": "UserName_ID",
+  "avatar": "OPC-TCS_logo.png",
+  "verified": true,
+  "badge": "blue"
 }
