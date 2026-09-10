@@ -7,19 +7,25 @@
 <meta name="description" content="把推文（X/Twitter）做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，卡片在本地生成，设置仅存本机浏览器。" />
 <meta name="keywords" content="推文卡片,推特截图生成器,tweet卡片,抖音图文,小红书图片,推文转图片,twitter card generator,X截图,Live图,实况照片" />
 <meta name="robots" content="index,follow,max-image-preview:large" />
-<!-- 部署到自己的域名后，在这里补 <link rel="canonical"> 和 og:url，填你自己的地址；
-     不要指向上游站点，否则等于告诉搜索引擎「正版在别处」 -->
+<!-- 迁移域名时，同步更新 canonical、og:url 和下方分享图片的绝对地址。 -->
+<link rel="canonical" href="https://tcs.opc.tools/" />
 <meta property="og:type" content="website" />
+<meta property="og:url" content="https://tcs.opc.tools/" />
 <meta property="og:site_name" content="OPC Tweet Card Studio" />
-<meta property="og:title" content="推文卡片生成器（OPC Tweet Card Studio） | 推文一键做成抖音小红书图片卡片" />
-<meta property="og:description" content="写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。自定义头像昵称，卡片在本地生成，设置仅存本机浏览器。" />
+<meta property="og:title" content="推文卡片生成器（OPC Tweet Card Studio）" />
+<meta property="og:description" content="把推文变成可发布的图片：写文案或导入推文库，选背景，一键导出 3:4 / 9:16 竖图、透明 PNG 或 Live 图素材。支持 AI Agent 批量出图。" />
 <meta property="og:locale" content="zh_CN" />
-<!-- 分享大图：建议自备 1200×630 的 og.png 替换掉这里的头像 -->
-<meta property="og:image" content="logo.png" />
+<!-- 分享图片使用独立的版本化文件名，方便后续更新时区分平台缓存。 -->
+<meta property="og:image" content="https://tcs.opc.tools/og-image-v1.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="推文卡片生成器（OPC Tweet Card Studio）：蓝色背景上的白色机器人手持推文卡片，支持 3:4 / 9:16、透明 PNG 和 Live 图。" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="推文卡片生成器（OPC Tweet Card Studio） | 推文一键做成抖音小红书图片卡片" />
-<meta name="twitter:description" content="写文案、在线抓取推文或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明 PNG。卡片在本地生成，设置仅存本机浏览器。" />
-<meta name="twitter:image" content="logo.png" />
+<meta name="twitter:title" content="推文卡片生成器（OPC Tweet Card Studio）" />
+<meta name="twitter:description" content="把推文变成可发布的图片：写文案或导入推文库，选背景，一键导出 3:4 / 9:16 竖图、透明 PNG 或 Live 图素材。支持 AI Agent 批量出图。" />
+<meta name="twitter:image" content="https://tcs.opc.tools/twitter-card-v1.png" />
+<meta name="twitter:image:alt" content="推文卡片生成器（OPC Tweet Card Studio）：蓝色背景上的白色机器人手持推文卡片，支持 3:4 / 9:16、透明 PNG 和 Live 图。" />
 <link rel="icon" href="logo.png" />
 <link rel="stylesheet" href="styles.css" />
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"推文卡片生成器（OPC Tweet Card Studio）","applicationCategory":"DesignApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"把推文做成可发布的图片卡片：写文案或导入推文库，选背景，导出 3:4 / 9:16 竖图或透明背景 PNG。卡片编辑与生成在浏览器本地完成，在线抓取按需发送请求。","inLanguage":"zh-CN"}</script>

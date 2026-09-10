@@ -36,7 +36,7 @@ python3 scripts/fetch_backgrounds.py
 
 1. 记录 `git rev-parse HEAD` 的完整提交 SHA 和 `git rev-parse --short HEAD` 的短 SHA，确认所需运行文件已包含在该提交中。
 2. 新建 `.wrangler/releases/<提交短SHA>/public`。该目录必须是新的发布目录；若已存在，先核对并保留原归档，不覆盖或递归删除。
-3. 使用 `git archive HEAD` 仅归档以下运行资源到 `public/`：`index.html`、`styles.css`、`app.js`、`profile.json`、`posts.json`、`posts.sample.json`、`logo.png`、`avatar.jpg`、`OPC-TCS_logo.png`、`llms.txt`、`backgrounds/`、`vendor/`。将 `functions/` 从同一提交单独归档到发布目录根部，形成与 `public/` 并列的 `functions/`。先写归档文件再解包，避免通过 PowerShell 文本管道传输二进制归档。
+3. 使用 `git archive HEAD` 仅归档以下运行资源到 `public/`：`index.html`、`styles.css`、`app.js`、`profile.json`、`posts.json`、`posts.sample.json`、`logo.png`、`avatar.jpg`、`OPC-TCS_logo.png`、`og-image-v1.png`、`twitter-card-v1.png`、`llms.txt`、`backgrounds/`、`vendor/`。将 `functions/` 从同一提交单独归档到发布目录根部，形成与 `public/` 并列的 `functions/`。先写归档文件再解包，避免通过 PowerShell 文本管道传输二进制归档。
 4. 核对归档中的路径、文件和提交版本。`.dev.vars`、`docs/`、`data/raw/`、测试产物及本机配置不得进入发布目录。
 5. 以 `.wrangler/releases/<提交短SHA>` 为当前目录执行 `npx wrangler pages deploy ./public --project-name=opc-tweet-card-studio --branch=main --commit-hash <完整SHA>`，其中 SHA 替换为第 1 步的值。保留发布归档，后续回滚复用对应提交的目录，不递归删除。
 
