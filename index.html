@@ -40,7 +40,7 @@
   <div class="hero">
     <img class="hero-logo" src="logo.png" alt="OPC Tweet Card Studio" width="256" height="256" />
     <div class="hero-text">
-      <h1>推文卡片生成器（OPC Tweet Card Studio）</h1>
+      <h1>推文卡片生成器<span class="hero-product-name">（OPC Tweet Card Studio）</span></h1>
       <p>把推文做成可直接发布的图片卡片：写文案或导入你的推文库 → 选背景 → 导出 3:4 / 9:16 竖图、透明 PNG，或 3 秒动效 Live 图素材（MP4）。卡片在浏览器本地生成，设置仅存本机浏览器；在线抓取按需发送请求。</p>
       <p class="hero-agent">也可以让 AI Agent 直接调用：调好样式后到左下角「<a href="#agent-prompt">交给 AI Agent</a>」复制一段指令，发给 Claude Code / Codex 即可批量出图（<a href="llms.txt" target="_blank" rel="noopener">参数文档</a>）。</p>
     </div>
@@ -142,8 +142,12 @@
       <section class="control-section hidden" id="custom-section">
         <div class="section-heading"><span>02</span><div><h2>编辑文案</h2><p>从推文库带过来的内容可以直接改，也可以从头写</p></div></div>
         <textarea id="custom-text" rows="8" placeholder="写点什么……"></textarea>
-        <div class="chip-row">
+        <div class="custom-editor-actions">
           <button class="chip" id="custom-reseed">用推文库选中的那条替换</button>
+          <label class="custom-date-field" for="custom-date">
+            <span class="mini-label">卡片日期</span>
+            <input class="text-input" id="custom-date" type="date" min="0001-01-01" max="9999-12-31" />
+          </label>
         </div>
       </section>
 

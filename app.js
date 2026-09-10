@@ -26,7 +26,8 @@ const state = {
   selected: null,        // 当前上卡的推文对象
   customText: "",
   customSeed: "",        // 上次带入编辑框的推文原文，用来判断用户改没改过
-  customDate: "",        // 编辑框内容的来源推文发布日期，空则用今天
+  customDate: "",        // 编辑框内容的日期，空则用今天
+  customDateEdited: false, // 手选或链接指定的日期，切换标签时也要保留
   tab: "library",        // library | fetch | custom
   mode: "poster",        // poster | tall | card
   cardRatio: "auto",
@@ -81,6 +82,12 @@ function fmtDate(iso) {
 function todayISO() {
   const t = new Date();
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+}
+
+function isISODate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number(value.slice(0, 4)) < 1) return false;
+  const date = new Date(value + "T00:00:00Z");
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 /* ---------- 账号信息（profile.json 默认值 + localStorage 本机覆盖） ---------- */
@@ -318,17 +325,19 @@ function selectPost(p) {
 }
 
 /* 从推文库切到自由编辑时，把选中的那条带进编辑框，省得重敲或再复制一次。
-   只在「编辑框为空」或「内容仍等于上次带入的原文」时覆盖——用户改过的东西不能冲掉。
+   只在文案与日期都未修改时自动带入——用户改过的东西不能冲掉。
    改过之后想换一条，用「用推文库选中的那条替换」按钮走 force。 */
 function primeCustomText(force) {
   if (!state.selected) return;
-  if (!force && state.customText.trim() && state.customText !== state.customSeed) return;
+  if (!force && (state.customDateEdited || (state.customText.trim() && state.customText !== state.customSeed))) return;
   // 配图以链接形式一并带进编辑框：想去掉图片，手动删掉这行链接即可
   const img = (state.selected.media && state.selected.media.image) || "";
   const text = img ? state.selected.text.replace(/\s+$/, "") + "\n" + img : state.selected.text;
   state.customText = text;
   state.customSeed = text;
   state.customDate = state.selected.date || "";   // 日期跟着来源推文走，不用今天
+  state.customDateEdited = false;
+  state.dateOverride = "";
   $("custom-text").value = state.customText;
 }
 
@@ -389,9 +398,8 @@ function currentText() {
 /* 编辑框里的内容是从某条推文带过来的时候，日期要跟着那条推文走。
    卡片是那条推文的样子，用抓取当天的日期就错了。 */
 function currentDate() {
-  if (state.dateOverride) return state.dateOverride;
-  if (fromLibrary()) return state.selected.date;
-  return state.customDate || todayISO();
+  const date = state.dateOverride || (fromLibrary() ? state.selected.date : state.customDate);
+  return isISODate(date) ? date : todayISO();
 }
 
 /* 正文渲染：链接 / @提及 / #话题 显示为 X 蓝，与真实推文一致 */
@@ -1336,10 +1344,15 @@ function bind() {
     $("library-section").classList.toggle("hidden", v !== "library");
     $("fetch-section").classList.toggle("hidden", v !== "fetch");
     $("custom-section").classList.toggle("hidden", v !== "custom");
+    if (v === "custom") $("custom-date").value = currentDate();
     renderCard();
   });
 
-  $("custom-reseed").onclick = () => { primeCustomText(true); renderCard(); };
+  $("custom-reseed").onclick = () => {
+    primeCustomText(true);
+    $("custom-date").value = currentDate();
+    renderCard();
+  };
 
   $("library-toggle").onclick = () => {
     const open = $("library-settings").classList.toggle("hidden") === false;
@@ -1417,14 +1430,20 @@ function bind() {
   $("search").oninput = (e) => { state.search = e.target.value; applyFilter(); };
   $("month-filter").onchange = (e) => { state.month = e.target.value; applyFilter(); };
   $("random-btn").onclick = randomPost;
-  // 清空编辑框视为从头写，日期回到今天
   $("custom-text").oninput = (e) => {
     state.customText = e.target.value;
-    if (!state.customText.trim()) {
-      state.customDate = "";
-      state.dateOverride = "";
-    }
     renderCard();
+  };
+  $("custom-date").oninput = (e) => {
+    // 日期分段输入时可能暂时为空，保持已选日期，等输入完整再更新预览。
+    if (!isISODate(e.target.value)) return;
+    state.customDate = e.target.value;
+    state.customDateEdited = true;
+    state.dateOverride = "";
+    renderCard();
+  };
+  $("custom-date").onblur = (e) => {
+    if (!isISODate(e.target.value)) e.target.value = currentDate();
   };
   $("card-scale").oninput = (e) => { paintRange(e.target); state.cardScale = Number(e.target.value); $("scale-val").textContent = state.cardScale + "%"; measureFitScale(); refreshAgentPrompt(); };
   $("card-opacity").oninput = (e) => { paintRange(e.target); state.cardOpacity = Number(e.target.value); renderCard(); };
@@ -1681,7 +1700,14 @@ async function applyUrlParams() {
   applyProfile();
 
   if (q.get("text")) { state.tab = "custom"; state.customText = q.get("text"); }
-  if (q.get("date")) state.dateOverride = q.get("date");
+  if (isISODate(q.get("date"))) {
+    if (state.tab === "custom") {
+      state.customDate = q.get("date");
+      state.customDateEdited = true;
+    } else {
+      state.dateOverride = q.get("date");
+    }
+  }
 
   const mode = q.get("mode");
   if (["poster", "tall", "card"].includes(mode)) state.mode = mode;

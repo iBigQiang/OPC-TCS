@@ -128,6 +128,10 @@ a:hover { color: var(--accent-hover); }
   line-height: 1.6; font-family: inherit; resize: vertical; outline: none; background: var(--bg); width: 100%;
 }
 #custom-text:focus { border-color: var(--accent); background: #fff; }
+.custom-editor-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; }
+.custom-editor-actions > .chip { flex: 1 1 10rem; min-height: 44px; }
+.custom-date-field { display: flex; flex-direction: column; gap: 0.35rem; flex: 1 1 10rem; min-width: 0; }
+.custom-date-field .text-input { min-width: 0; min-height: 44px; color: var(--text); }
 
 .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .option { display: flex; flex-direction: column; gap: 0.35rem; }
@@ -330,6 +334,16 @@ a.ghost-btn:hover { color: var(--text); }
   .workspace { grid-template-columns: 1fr; grid-template-areas: "left" "preview" "right"; }
   .preview-panel { position: static; }
   .stage-wrap { padding: 1rem 0.5rem; }
+}
+
+/* 手机端将 Logo 和产品名称居中，介绍仍占满一行并左对齐。 */
+@media (max-width: 640px) {
+  .hero { flex-direction: column; align-items: center; gap: 0.75rem; padding-top: 1.25rem; }
+  .hero-logo { width: 96px; height: 96px; align-self: center; }
+  .hero-text { width: 100%; }
+  .hero h1 { font-size: 1.4rem; line-height: 1.4; margin-bottom: 1rem; text-align: center; }
+  .hero-product-name { display: block; margin-top: 0.25rem; color: var(--muted); font-size: 0.9rem; font-weight: 600; letter-spacing: 0; }
+  .custom-date-field .text-input { font-size: 1rem; }
 }
 
 /* embed=1：无界面渲染模式，供 Agent / 自动化截图或读取 window.__cardDataUrl */
